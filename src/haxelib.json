@@ -1,0 +1,13 @@
+{
+  "name": "nog",
+  "url": "http://github.com/TomByrne/nog",
+  "license": "MIT",
+  "tags": ["cross","utility","composition","pattern","dependency","injection"],
+  "description": "A NOG parser built in Haxe",
+  "version": "0.0.1",
+  "releasenote": "",
+  "contributors": ["tbyrne"],
+  "dependencies": {
+    "stringParser": ""
+  }
+}

@@ -1,6 +1,7 @@
 package nog;
 
 import flash.errors.Error;
+import nog.Nog.NogPos;
 import nog.NogInterpretter.NogPending;
 import stringParser.core.AbstractInterpretter;
 import stringParser.core.StringParser;
@@ -74,6 +75,11 @@ class NogInterpretter extends AbstractInterpretter
 		checkInit();
 		return commentMultiParser;
 	}
+	public static var lineEndingParser(get, null):CharListParser;
+	private static function get_lineEndingParser():CharListParser{
+		checkInit();
+		return lineEndingParser;
+	}
 
 	private static function checkInit():Void{
 		if(_nogConfig==null){
@@ -84,6 +90,7 @@ class NogInterpretter extends AbstractInterpretter
 			operatorParser.childParsers = [];
 			_nogConfig.push(operatorParser);
 			blockChildParsers.push(operatorParser);
+			operatorParser.childParsers.push(operatorParser);
 			
 			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]));
 			labelParser.childParsers = [];
@@ -138,6 +145,12 @@ class NogInterpretter extends AbstractInterpretter
 			squareBlockParser.childParsers = blockChildParsers;
 			angleBlockParser.childParsers = blockChildParsers;
 			roundBlockParser.childParsers = blockChildParsers;
+			
+			
+			lineEndingParser = new CharListParser([";"]);
+			_nogConfig.push(lineEndingParser);
+			operatorParser.childParsers.push(lineEndingParser);
+			labelParser.childParsers.push(lineEndingParser);
 		}
 	}
 
@@ -160,11 +173,16 @@ class NogInterpretter extends AbstractInterpretter
 		_result = [];
 	}
 
-	override private function interpret(id:String, parentId:String, parser:ICharacterParser, strings:Dynamic):Void{
+	override private function interpret(id:String, parentId:String, parser:ICharacterParser, strings:Dynamic):Void {
+		if (parser == lineEndingParser) return;
+		
 		var value:Dynamic = null;
 		
 		var pending:NogPending = NogPending.take(id, parser, strings);
 		_pendingMap.set(id, pending);
+		
+		pending.start = _stringParser.getStartIndex(id);
+		pending.end = _stringParser.getEndIndex(id);
 		
 		if(parentId!=null){
 			var parent:NogPending = _pendingMap.get(parentId);
@@ -238,18 +256,24 @@ class NogInterpretter extends AbstractInterpretter
 		}else {
 			throw new Error("Something went very wrong");
 		}
+		#if nogpos
+		var nogPos = { start:pending.start, end:pending.end, nog:nogObj };
+		#else
+		var nogPos = nogObj;
+		#end
+		
 		if (pending.parent==null) {
-			_result.unshift(nogObj);
+			_result.unshift(nogPos);
 		}else {
 			if (pending.parent.childrenNog == null) pending.parent.childrenNog = [];
-			pending.parent.childrenNog.push(nogObj);
+			pending.parent.childrenNog.push(nogPos);
 		}
 		_pendingMap.remove(pending.id);
 		NogPending.ret(pending);
 	}
 	
 	@:inline
-	function getChild(pending:NogPending):Nog{
+	function getChild(pending:NogPending):NogPos{
 		return pending.childrenNog == null ? null : pending.childrenNog[0];
 	}
 }
@@ -283,8 +307,10 @@ class NogPending {
 	public var parser:ICharacterParser;
 	public var strings:Dynamic;
 	public var childrenPending:Array<NogPending>;
-	public var childrenNog:Array<Nog>;
+	public var childrenNog:Array<NogPos>;
 	public var parent:NogPending;
+	public var start:Int;
+	public var end:Int;
 	
 	public function new() {
 		

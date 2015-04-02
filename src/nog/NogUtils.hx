@@ -7,19 +7,28 @@ class NogUtils
 	public static var STRINGIFY_TAB:String = "\t";
 	public static var STRINGIFY_NEWLINE:String = "\n";
 	public static var STRINGIFY_SPACE:String = " ";
+	public static var STRINGIFY_LINEEND:String = ";";
 	
-	#if nogpos
+	#if (nogpos || macro)
 	public static function stringify( nog:NogPos, pretty:Bool=true ):String
 	{
 		return stringifyNog(nog, pretty, "");
 	}
 	private static function stringifyNog( nog:NogPos, pretty:Bool, leadingWhite:String ):String
 	{
-		if(pretty){
-			return "{" + STRINGIFY_SPACE+"start:" +nog.start + "," + STRINGIFY_SPACE+"end:" + nog.end + "," + STRINGIFY_SPACE+"nog:" + stringifyNogObj(nog.nog, pretty, leadingWhite) + STRINGIFY_SPACE+"}";
+		if (pretty) {
+			return stringifyNogObj(nog.nogRef, pretty, leadingWhite);
+			//return "{" + STRINGIFY_SPACE+"start:" +nog.min + "," + STRINGIFY_SPACE+"end:" + nog.max + "," + STRINGIFY_SPACE+"nog:" + stringifyNogObj(nog.nogRef, pretty, leadingWhite) + STRINGIFY_SPACE+"}";
 		}else {
-			return "{start:" +nog.start + ",end:" + nog.end + ",nog:" + stringifyNogObj(nog.nog, pretty, leadingWhite) + "}";
+			return "{start:" +nog.min + ",end:" + nog.max + ",nog:" + stringifyNogObj(nog.nogRef, pretty, leadingWhite) + "}";
 		}
+	}
+	
+	public static function nog(nogPos:NogPos):Nog {
+		return nogPos.nogRef;
+	}
+	public static function pos(nog:Nog, min:Int, max:Int, file:String):NogPos {
+		return { nogRef:nog, min:min, max:max, file:file };
 	}
 	
 	#else
@@ -33,6 +42,13 @@ class NogUtils
 		return stringifyNogObj(nog, pretty, leadingWhite);
 	}
 	
+	public static function nog(nogPos:NogPos):Nog {
+		return nogPos;
+	}
+	public static function pos(nog:Nog, min:Int, max:Int, file:String):NogPos {
+		return nog;
+	}
+	
 	#end
 	
 	
@@ -40,20 +56,41 @@ class NogUtils
 	{
 		switch(nog) {
 			case Nog.Block(bracket, children):
-				var ret = bracket + STRINGIFY_NEWLINE;
-				var childWhite = leadingWhite;
-				if (pretty) childWhite += STRINGIFY_TAB;
+				var ret = bracket;
+				
+				var childWhite = (pretty ? leadingWhite + STRINGIFY_TAB : leadingWhite );
+				var addNewline = false;
+				var childStrs = [];
 				for (child in children) {
-					ret += childWhite + stringifyNog(child, pretty, childWhite) + STRINGIFY_NEWLINE;
+					var childStr = stringifyNog(child, pretty, childWhite);
+					childStrs.push(childStr);
+					if (pretty && !addNewline && (childStr.indexOf(STRINGIFY_NEWLINE) != -1 || containsBlock(child))){
+						addNewline = true;
+					}
 				}
-				ret += leadingWhite;
+				var newLine = (pretty ? STRINGIFY_NEWLINE : "");
+				if (addNewline) {
+					for (childStr in childStrs) {
+						ret += newLine + childWhite + childStr;
+					}
+					ret += STRINGIFY_NEWLINE + leadingWhite;
+				}else{
+					for (i in 0...childStrs.length) {
+						var childStr = childStrs[i];
+						ret += childStr;
+						if (childStrs.length > 1 && i<childStrs.length-1) {
+							ret += STRINGIFY_LINEEND;
+						}
+					}
+				}
+				
 				switch(bracket) {
 					case "<": ret += ">";
 					case "{": ret += "}";
 					case "[": ret += "]";
 					case "(": ret += ")";
 				}
-				return ret + STRINGIFY_NEWLINE + leadingWhite;
+				return ret;
 				
 			case Nog.Comment(comment):
 				return "#"+comment;
@@ -72,7 +109,13 @@ class NogUtils
 			case Nog.Op(op, child):
 				var ret = op;
 				if (child != null) {
-					if (pretty) ret += STRINGIFY_SPACE;
+					if (pretty) {
+						switch(NogUtils.nog(child)) {
+							case Nog.Op(_, _) | Nog.Str(_):
+								ret += STRINGIFY_SPACE;
+							default:
+						}
+					}
 					ret += stringifyNog(child, pretty, leadingWhite);
 				}
 				return ret;
@@ -80,6 +123,20 @@ class NogUtils
 			case Nog.Str(quote, string):
 				return quote + string + quote;
 				
+		}
+	}
+	
+	static private function containsBlock(nogPos:NogPos) : Bool
+	{
+		switch(NogUtils.nog(nogPos)) {
+			case Nog.Comment(_) | Nog.CommentMulti(_) | Nog.Str(_, _):
+				return false;
+				
+			case Nog.Block(_, children):
+				return children.length > 0;
+				
+			case Nog.Op(_, child) | Nog.Label(_, child):
+				return child != null && containsBlock(child);
 		}
 	}
 }

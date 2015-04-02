@@ -11,12 +11,13 @@ enum Nog
 	CommentMulti(comment:String);
 }
 
-#if nogpos
+#if (nogpos || macro)
 
 typedef NogPos = {
-	var start:Int;
-	var end:Int;
-	var nog:Nog;
+	var min:Int;
+	var max:Int;
+	var file:String;
+	var nogRef:Nog;
 }
 
 #else

@@ -1,6 +1,5 @@
 package nog;
 
-import flash.errors.Error;
 import nog.Nog.NogPos;
 import nog.NogInterpretter.NogPending;
 import stringParser.core.AbstractInterpretter;
@@ -11,9 +10,17 @@ import stringParser.parsers.ICharacterParser;
 import stringParser.parsers.NameValuePairParser;
 import stringParser.parsers.QuotedStringParser;
 import stringParser.parsers.CharListParser;
+import stringParser.parsers.WhitespaceParser;
+
+using nog.NogUtils;
 
 class NogInterpretter extends AbstractInterpretter
 {
+	public function getNog():Array<NogPos>{
+		return _nogResult;
+	}
+	
+	
 	public static var nogConfig(get, null):Array<ICharacterParser>;
 	private static function get_nogConfig():Array<ICharacterParser>{
 		checkInit();
@@ -84,16 +91,22 @@ class NogInterpretter extends AbstractInterpretter
 	private static function checkInit():Void{
 		if(_nogConfig==null){
 			_nogConfig = [];
+			_nogConfig.push(WhitespaceParser.instance);
+			
+			var spaceParser = new WhitespaceParser([" "]);
+			
 			var blockChildParsers:Array<ICharacterParser> = [];
 			
-			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"]);
+			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], 1);
 			operatorParser.childParsers = [];
+			operatorParser.finishedParsers = [spaceParser];
 			_nogConfig.push(operatorParser);
 			blockChildParsers.push(operatorParser);
 			operatorParser.childParsers.push(operatorParser);
 			
-			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]));
+			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]), 1);
 			labelParser.childParsers = [];
+			labelParser.finishedParsers = [spaceParser];
 			_nogConfig.push(labelParser);
 			blockChildParsers.push(labelParser);
 			operatorParser.childParsers.push(labelParser);
@@ -125,21 +138,25 @@ class NogInterpretter extends AbstractInterpretter
 			_nogConfig.push(curlyBlockParser);
 			operatorParser.childParsers.push(curlyBlockParser);
 			labelParser.childParsers.push(curlyBlockParser);
+			blockChildParsers.push(curlyBlockParser);
 			
 			squareBlockParser = new BracketPairParser("[","]",null,[";", "\n", "\r"]);
 			_nogConfig.push(squareBlockParser);
 			operatorParser.childParsers.push(squareBlockParser);
 			labelParser.childParsers.push(squareBlockParser);
+			blockChildParsers.push(squareBlockParser);
 			
 			angleBlockParser = new BracketPairParser("<",">",null,[";", "\n", "\r"]);
 			_nogConfig.push(angleBlockParser);
 			operatorParser.childParsers.push(angleBlockParser);
 			labelParser.childParsers.push(angleBlockParser);
+			blockChildParsers.push(angleBlockParser);
 			
 			roundBlockParser = new BracketPairParser("(",")",null,[";", "\n", "\r"]);
 			_nogConfig.push(roundBlockParser);
 			operatorParser.childParsers.push(roundBlockParser);
 			labelParser.childParsers.push(roundBlockParser);
+			blockChildParsers.push(roundBlockParser);
 			
 			curlyBlockParser.childParsers = blockChildParsers;
 			squareBlockParser.childParsers = blockChildParsers;
@@ -149,8 +166,6 @@ class NogInterpretter extends AbstractInterpretter
 			
 			lineEndingParser = new CharListParser([";"]);
 			_nogConfig.push(lineEndingParser);
-			operatorParser.childParsers.push(lineEndingParser);
-			labelParser.childParsers.push(lineEndingParser);
 		}
 	}
 
@@ -158,19 +173,29 @@ class NogInterpretter extends AbstractInterpretter
 	private static var _nogConfig:Array<ICharacterParser>;
 	
 	private var _pendingMap:Map<String, NogPending>;
-	private var _pending:Array<NogPending> = [];
+	private var _pending:Array<NogPending>;
+	private var _nogResult:Array<NogPos>;
+	
+	// Sets back-references in output objects (change the prop as you parse different sources)
+	public var currentFilePath:String;
 
 
 	public function new(inputString:String=null){
 		super(inputString);
 		_pendingMap = new Map<String, NogPending>();
 	}
+	
+	override private function shouldTrimWhitespace(){
+		return false;
+	}
 	override private function getParserConfig():Array<ICharacterParser>{
 		return nogConfig;
 	}
 	
-	override private function start():Void{
-		_result = [];
+	override private function start():Void {
+		_pending = [];
+		_nogResult = [];
+		_result = _nogResult;
 	}
 
 	override private function interpret(id:String, parentId:String, parser:ICharacterParser, strings:Dynamic):Void {
@@ -194,7 +219,6 @@ class NogInterpretter extends AbstractInterpretter
 				convertPending(_pending.pop());
 			}
 		}
-		
 		_pending.push(pending);
 	}
 
@@ -219,11 +243,11 @@ class NogInterpretter extends AbstractInterpretter
 		var nogObj:Nog;
 		
 		if (pending.parser == operatorParser) {
-			var str = (pending.strings ? StringTools.trim(pending.strings) : null);
+			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
 			nogObj = Nog.Op(str, getChild(pending));
 			
 		}else if (pending.parser == labelParser) {
-			var str = (pending.strings ? StringTools.trim(pending.strings) : null);
+			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
 			nogObj = Nog.Label(str, getChild(pending));
 			
 		}else if (pending.parser == stringSingleParser) {
@@ -254,16 +278,14 @@ class NogInterpretter extends AbstractInterpretter
 			nogObj = Nog.Block("<", pending.childrenNog);
 			
 		}else {
-			throw new Error("Something went very wrong");
+			throw "Something went very wrong";
 		}
-		#if nogpos
-		var nogPos = { start:pending.start, end:pending.end, nog:nogObj };
-		#else
-		var nogPos = nogObj;
-		#end
+		
+		
+		var nogPos = nogObj.pos(pending.start, pending.end, currentFilePath);
 		
 		if (pending.parent==null) {
-			_result.unshift(nogPos);
+			_nogResult.unshift(nogPos);
 		}else {
 			if (pending.parent.childrenNog == null) pending.parent.childrenNog = [];
 			pending.parent.childrenNog.push(nogPos);

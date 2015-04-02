@@ -4,7 +4,7 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="testBin\TestBed.swf" />
+    <movie path="testBin\TestLangParse.swf" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
@@ -24,9 +24,9 @@
     <option directives="" />
     <option flashStrict="False" />
     <option noInlineOnDebug="False" />
-    <option mainClass="test.TestBed" />
+    <option mainClass="test.TestLangParse" />
     <option enabledebug="True" />
-    <option additional="" />
+    <option additional="-D nogpos2" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
@@ -34,7 +34,7 @@
   </haxelib>
   <!-- Class files to compile (other referenced classes will automatically be included) -->
   <compileTargets>
-    <!-- example: <compile path="..." /> -->
+    <compile path="..\testSrc\test\TestLangParse.hx" />
   </compileTargets>
   <!-- Assets to embed into the output SWF -->
   <library>

@@ -4,15 +4,15 @@ import nog.lang.LangDef.Pointer;
 import nog.lang.LangDef.TokenDef;
 import nog.lang.LangDef.TokenPos;
 import nog.Nog;
-import nog.NogInterpretter;
-import stringParser.core.IInterpretter;
+import nog.NogInterpreter;
+import stringParser.core.IInterpreter;
 import stringParser.core.StringParser;
 import stringParser.core.StringParserIterator;
 
 using nog.NogUtils;
 using nog.lang.LangUtils;
 
-class LangDefInterpretter implements IInterpretter
+class LangDefInterpreter implements IInterpreter
 {
 	public function getLangDef():LangDef{
 		checkResult();
@@ -46,10 +46,10 @@ class LangDefInterpretter implements IInterpretter
 	
 	private var _result:LangDef;
 	private var _resultWas:Dynamic;
-	private var _nogInterpretter:NogInterpretter;
+	private var _nogInterpretter:NogInterpreter;
 
 	public function new(inputString:String) {
-		_nogInterpretter = new NogInterpretter();
+		_nogInterpretter = new NogInterpreter();
 		this.inputString = inputString;
 	}
 	

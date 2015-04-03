@@ -1,8 +1,8 @@
 package nog;
 
 import nog.Nog.NogPos;
-import nog.NogInterpretter.NogPending;
-import stringParser.core.AbstractInterpretter;
+import nog.NogInterpreter.NogPending;
+import stringParser.core.AbstractInterpreter;
 import stringParser.core.StringParser;
 import stringParser.core.StringParserIterator;
 import stringParser.parsers.BracketPairParser;
@@ -14,7 +14,7 @@ import stringParser.parsers.WhitespaceParser;
 
 using nog.NogUtils;
 
-class NogInterpretter extends AbstractInterpretter
+class NogInterpreter extends AbstractInterpreter
 {
 	public function getNog():Array<NogPos>{
 		return _nogResult;
@@ -185,9 +185,6 @@ class NogInterpretter extends AbstractInterpretter
 		_pendingMap = new Map<String, NogPending>();
 	}
 	
-	override private function shouldTrimWhitespace(){
-		return false;
-	}
 	override private function getParserConfig():Array<ICharacterParser>{
 		return nogConfig;
 	}

@@ -30,7 +30,7 @@ class LangMacro
 	
 	static public function genLangDefNow(langDef:String, ?langDefUrl:String) : LangDef 
 	{
-		var langDefInterp = new LangDefInterpretter(langDef);
+		var langDefInterp = new LangDefInterpreter(langDef);
 		langDefInterp.currentFilePath = langDefUrl;
 		var iterator = langDefInterp.getIterator();
 		iterator.iterateSynchronous();

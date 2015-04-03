@@ -4,7 +4,7 @@ import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.TimerEvent;
 import flash.utils.Timer;
-import nog.NogInterpretter;
+import nog.NogInterpreter;
 import stringParser.core.StringParser;
 import stringParser.core.StringParserIterator;
 import flash.utils.ByteArray;
@@ -30,7 +30,7 @@ class TestBed extends Sprite
 		timer.start();
 	}
 	function onTimer(e:Event):Void{
-		var tester:FileStringParserTester<Array<NogPos>> = new FileStringParserTester("NOG", new NogInterpretter());
+		var tester:FileStringParserTester<Array<NogPos>> = new FileStringParserTester("NOG", new NogInterpreter());
 		tester.addTest(new CommentSingle1().toString(), test.bind([p(0,9,Nog.Comment(" comment"))], _, _), false);
 		tester.addTest(new CommentMulti1().toString(), test.bind([p(0,22,Nog.CommentMulti(" comment\r\nmulti \r\n"))], _, _), false);
 		tester.addTest(new SimpleOp1().toString(), test.bind([p(0,1,Nog.Op("+", p(1,7,Nog.Label("plusOp"))))], _, _), false);

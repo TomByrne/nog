@@ -5,10 +5,10 @@ import flash.events.Event;
 import flash.events.TimerEvent;
 import flash.utils.Timer;
 import nog.lang.LangDef;
-import nog.lang.LangDefInterpretter;
-import nog.lang.LangInterpretter;
+import nog.lang.LangDefInterpreter;
+import nog.lang.LangInterpreter;
 import nog.lang.LangMacro;
-import nog.NogInterpretter;
+import nog.NogInterpreter;
 import stringParser.core.StringParser;
 import stringParser.core.StringParserIterator;
 import flash.utils.ByteArray;
@@ -36,7 +36,7 @@ class TestLangParse extends Sprite
 	function onTimer(e:Event):Void {
 		//var langDef:LangDef = LangMacro.getLangDef("../examples/LanguageDef.nog");
 		
-		var langDefInterp = new LangDefInterpretter(new LanguageDef().toString());
+		var langDefInterp = new LangDefInterpreter(new LanguageDef().toString());
 		langDefInterp.currentFilePath = "../examples/LanguageDef.nog";
 		var iterator = langDefInterp.getIterator();
 		iterator.iterateSynchronous();

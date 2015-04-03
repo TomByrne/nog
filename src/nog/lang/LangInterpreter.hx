@@ -1,8 +1,8 @@
 package nog.lang;
-import stringParser.core.IInterpretter;
+import stringParser.core.IInterpreter;
 import stringParser.core.StringParserIterator;
 
-class LangInterpretter implements IInterpretter
+class LangInterpreter implements IInterpreter
 {
 	public function getResult():Dynamic {
 		checkResult();
@@ -23,12 +23,12 @@ class LangInterpretter implements IInterpretter
 	
 	private var _result:Dynamic;
 	private var _resultWas:Dynamic;
-	private var _nogInterpretter:NogInterpretter;
+	private var _nogInterpretter:NogInterpreter;
 	private var _langDef:LangDef;
 
 	public function new(langDef:LangDef, inputString:String) {
 		_langDef = langDef;
-		_nogInterpretter = new NogInterpretter();
+		_nogInterpretter = new NogInterpreter();
 		this.inputString = inputString;
 	}
 	

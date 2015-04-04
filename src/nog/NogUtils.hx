@@ -98,25 +98,39 @@ class NogUtils
 			case Nog.CommentMulti(comment):
 				return "##"+comment+"##";
 				
-			case Nog.Label(label, child):
+			case Nog.Label(label, child1, child2):
 				var ret = label;
-				if (child != null) {
+				if (child1 != null) {
 					if (pretty) ret += STRINGIFY_SPACE;
-					ret += stringifyNog(child, pretty, leadingWhite);
+					ret += stringifyNog(child1, pretty, leadingWhite);
+				}
+				if (child2 != null) {
+					if (pretty) ret += STRINGIFY_SPACE;
+					ret += stringifyNog(child2, pretty, leadingWhite);
 				}
 				return ret;
 				
-			case Nog.Op(op, child):
+			case Nog.Op(op, child1, child2):
 				var ret = op;
-				if (child != null) {
+				if (child1 != null) {
 					if (pretty) {
-						switch(NogUtils.nog(child)) {
+						switch(NogUtils.nog(child1)) {
 							case Nog.Op(_, _) | Nog.Str(_):
 								ret += STRINGIFY_SPACE;
 							default:
 						}
 					}
-					ret += stringifyNog(child, pretty, leadingWhite);
+					ret += stringifyNog(child1, pretty, leadingWhite);
+				}
+				if (child2 != null) {
+					if (pretty) {
+						switch(NogUtils.nog(child2)) {
+							case Nog.Op(_, _) | Nog.Str(_):
+								ret += STRINGIFY_SPACE;
+							default:
+						}
+					}
+					ret += stringifyNog(child2, pretty, leadingWhite);
 				}
 				return ret;
 				
@@ -135,8 +149,8 @@ class NogUtils
 			case Nog.Block(_, children):
 				return children.length > 0;
 				
-			case Nog.Op(_, child) | Nog.Label(_, child):
-				return child != null && containsBlock(child);
+			case Nog.Op(_, child1, child2) | Nog.Label(_, child1, child2):
+				return (child1 != null && containsBlock(child1)) || (child2 != null && containsBlock(child2));
 		}
 	}
 }

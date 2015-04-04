@@ -97,14 +97,14 @@ class NogInterpreter extends AbstractInterpreter
 			
 			var blockChildParsers:Array<ICharacterParser> = [];
 			
-			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], 1);
+			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], 2, [";", "\n", "\r"]);
 			operatorParser.childParsers = [];
 			operatorParser.finishedParsers = [spaceParser];
 			_nogConfig.push(operatorParser);
 			blockChildParsers.push(operatorParser);
 			operatorParser.childParsers.push(operatorParser);
 			
-			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]), 1);
+			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]), 2, [";", "\n", "\r"]);
 			labelParser.childParsers = [];
 			labelParser.finishedParsers = [spaceParser];
 			_nogConfig.push(labelParser);
@@ -241,11 +241,11 @@ class NogInterpreter extends AbstractInterpreter
 		
 		if (pending.parser == operatorParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
-			nogObj = Nog.Op(str, getChild(pending));
+			nogObj = Nog.Op(str, getChild(pending), getChild(pending, 1));
 			
 		}else if (pending.parser == labelParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
-			nogObj = Nog.Label(str, getChild(pending));
+			nogObj = Nog.Label(str, getChild(pending), getChild(pending, 1));
 			
 		}else if (pending.parser == stringSingleParser) {
 			nogObj = Nog.Str("'", pending.strings);
@@ -292,8 +292,8 @@ class NogInterpreter extends AbstractInterpreter
 	}
 	
 	@:inline
-	function getChild(pending:NogPending):NogPos{
-		return pending.childrenNog == null ? null : pending.childrenNog[0];
+	function getChild(pending:NogPending, index:Int=0):NogPos{
+		return pending.childrenNog == null || pending.childrenNog.length<=index ? null : pending.childrenNog[index];
 	}
 }
 class NogPending {

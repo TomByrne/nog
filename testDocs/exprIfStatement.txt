@@ -1,4 +1,3 @@
-if(expr1)
-{
+if(expr1){
 	expr2;
 }

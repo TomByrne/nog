@@ -76,10 +76,13 @@ class LangDefInterpreter implements IInterpreter
 		for (nogPos in res) {
 			trace(nogPos.stringify());
 			switch(nogPos.nog()) {
-				case Nog.Op(op, child):
+				case Nog.Op(op, child1, child2):
+					if (child2 != null) {
+						doErr(child2, "Unrecognised token");
+					}
 					if (op == "@") {
 						// metadata
-						var pair = getNameValue(child);
+						var pair = getNameValue(child1);
 						switch( pair.name ) {
 							case "name" : name = pair.value;
 							case "fileExt" : fileExt = pair.value;
@@ -87,22 +90,25 @@ class LangDefInterpreter implements IInterpreter
 						
 					}else if (op == "!") {
 						// definition
-						switch(child.nog()) {
-							case Nog.Label(label, child2):
+						switch(child1.nog()) {
+							case Nog.Label(label, child1, child2):
 								// Define new symbol
-								refs.set(label, interpNogRoot(child2, lookups, identifierTypes));
+								refs.set(label, interpNogRoot(child1, lookups, identifierTypes));
 								
+								if (child2 != null) {
+									doErr(child2, "Unrecognised token");
+								}
 							default:
-								doErr(child, "Should specify a symbol label here");
+								doErr(child1, "Should specify a symbol label here");
 								
 						}
 						
 					}else if (op == "-") {
 						// root item/s
 						if (rootDef != null) {
-							doErr(child, "Root token already defined");
+							doErr(child1, "Root token already defined");
 						}
-						rootDef = interpNogRoot(child, lookups, identifierTypes);
+						rootDef = interpNogRoot(child1, lookups, identifierTypes);
 					}
 				
 				case Nog.Comment(_) | Nog.CommentMulti(_):
@@ -141,32 +147,37 @@ class LangDefInterpreter implements IInterpreter
 		
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Op(op, child):
+			case Nog.Op(op, child1, child2):
 				
 				if ( op.length>1 && op.charAt(0) == "\\" ) {
-					return toTokenPos(TokenDef.LiteralOp(op.substr(1), interpNog(child, lookups, identifierTypes)), nogPos);
+					return toTokenPos(TokenDef.LiteralOp(op.substr(1), interpNog(child1, lookups, identifierTypes)), nogPos);
 				}
 				
 				if(op == "+"){
-					return toTokenPos(TokenDef.Multi(interpNog(child, lookups, identifierTypes)), nogPos);
+					if (child2 != null) doErr(child2, "Unrecognised token");
+					return toTokenPos(TokenDef.Multi(interpNog(child1, lookups, identifierTypes)), nogPos);
 					
 				}else if (op == "|") {
-					return toTokenPos(TokenDef.Alternate(interpNogList(child, lookups, identifierTypes, "[")), nogPos);
+					return toTokenPos(TokenDef.Alternate(interpNogList(child1, lookups, identifierTypes, "["), interpNog(child2, lookups, identifierTypes)), nogPos);
 					
 				}else if (op == ":") {
-					switch(child.nog()) {
-						case Nog.Label(label, child2):
+					if (child2 != null) doErr(child2, "Unrecognised token");
+					switch(child1.nog()) {
+						case Nog.Label(label, child1, child2):
+							if (child2 != null) doErr(child2, "Unrecognised token");
 							if (identifierTypes.indexOf(label) == -1) identifierTypes.push(label);
-							return toTokenPos(TokenDef.Ident(label, interpNog(child2, lookups, identifierTypes)), nogPos);
+							return toTokenPos(TokenDef.Ident(label, interpNog(child1, lookups, identifierTypes)), nogPos);
 						default:
-							doErr(child, "Identifier type operator should be followed by a label");
+							doErr(child1, "Identifier type operator should be followed by a label");
 							return null;
 					}
 					
 				}else if (op == "!") {
-					switch(child.nog()) {
-						case Nog.Label(label, child):
-							var ret = toTokenPos(TokenDef.Ref(label, {value:null}, interpNog(child, lookups, identifierTypes)), nogPos);
+					if (child2 != null) doErr(child2, "Unrecognised token");
+					switch(child1.nog()) {
+						case Nog.Label(label, child1, child2):
+							if (child2 != null) doErr(child2, "Unrecognised token");
+							var ret = toTokenPos(TokenDef.Ref(label, {value:null}, interpNog(child1, lookups, identifierTypes)), nogPos);
 							lookups.push(ret);
 							return ret;
 						default:
@@ -175,43 +186,46 @@ class LangDefInterpreter implements IInterpreter
 					}
 					
 				}else if (op == "$") {
-					switch(child.nog()) {
-						case Nog.Label(label, child2):
+					if (child2 != null) doErr(child2, "Unrecognised token");
+					switch(child1.nog()) {
+						case Nog.Label(label, child11, child12):
+							if (child12 != null) doErr(child12, "Unrecognised token");
 							switch(label) {
 								case "Int":
 									return toTokenPos(TokenDef.Int, nogPos);
 								case "Float":
 									return toTokenPos(TokenDef.Float, nogPos);
 								case "String":
-									return interpStringType(child2);
+									return interpStringType(child11);
 								default:
-									doErr(child2, "Unknown core type used");
+									doErr(child11, "Unknown core type used");
 									return null;
 							}
 						default:
-							doErr(child, "Core type operator should be followed by a type name (e.g. Int)");
+							doErr(child1, "Core type operator should be followed by a type name (e.g. Int)");
 							return null;
 					}
 					
 				}else if (op == "?") {
 					var children;
-					if (isNogList(child, "[")) {
-						children = interpNogList(child, lookups, identifierTypes, "[");
+					if (isNogList(child1, "[")) {
+						children = interpNogList(child1, lookups, identifierTypes, "[");
 					}else {
-						children = [interpNog(child, lookups, identifierTypes)];
+						children = [interpNog(child1, lookups, identifierTypes)];
 					}
 					if(children.length==1){
-						return toTokenPos(TokenDef.Optional(children[0]), nogPos);
+						var next = interpNog(child2, lookups, identifierTypes);
+						return toTokenPos(TokenDef.Optional(children[0], next), nogPos);
 					}else if (children.length == 0) {
-						doErr(child, "Optional should have exactly one child expression");
+						doErr(child1, "Optional should have exactly one child expression");
 						return null;
 					}else {
-						doErr(child, "Optional operator should only have one child expression");
+						doErr(child1, "Optional operator should only have one child expression");
 						return null;
 					}
 					
 				}else {
-					doErr(child, "Unrecognised operator");
+					doErr(child1, "Unrecognised operator");
 					return null;
 				}
 				
@@ -260,11 +274,9 @@ class LangDefInterpreter implements IInterpreter
 	function getLabel(nogPos:NogPos):String{
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Label(label, child):
-				if (child != null) {
-					doErr(child, "Child tokens are not accepted here");
-					return null;
-				}
+			case Nog.Label(label, child1, child2):
+				if (child2 != null) doErr(child2, "Child tokens are not accepted here");
+				if (child1 != null) doErr(child1, "Child tokens are not accepted here");
 				return label;
 			default:
 				doErr(nogPos, "Should be simple label here");
@@ -306,27 +318,26 @@ class LangDefInterpreter implements IInterpreter
 		var nog:Nog = nogPos.nog();
 		
 		switch(nog) {
-			case Nog.Label(label, child):
-				if (label != "name" && label != "fileExt") {
-					doErr(child, "Unrecognised metadata name");
+			case Nog.Label(label, child1, child2):
+				if( child2 != null) {
+					doErr(child2, "Unrecognised token");
 					return null;
 				}
-				switch(child.nog()) {
-					case Nog.Op(op, child2):
-						if (op == "=") {
-							switch(child2.nog()) {
-								case Nog.Str(quote, str):
-									return { name:label, value:str };
-								default:
-									doErr(child2, "Should be a string value");
-									return null;
-							}
-						}else {
-							doErr(child, "Should be an equals operator");
-							return null;
+				if (label != "name" && label != "fileExt") {
+					doErr(child1, "Unrecognised metadata name");
+					return null;
+				}
+				switch(child1.nog()) {
+					case Nog.Op("=", child11, child12):
+						switch(child11.nog()) {
+							case Nog.Str(quote, str):
+								return { name:label, value:str };
+							default:
+								doErr(child11, "Should be a string value");
+								return null;
 						}
 					default:
-						doErr(child, "Should be an equals operator");
+						doErr(child1, "Should be an equals operator");
 						return null;
 				}
 			default:

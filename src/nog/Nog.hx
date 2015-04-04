@@ -3,8 +3,8 @@ import nog.Nog.Pos;
 
 enum Nog
 {
-	Op(op:String, ?child:NogPos);
-	Label(label:String, ?child:NogPos);
+	Op(op:String, ?child1:NogPos, ?child2:NogPos);
+	Label(label:String, ?child1:NogPos, ?child2:NogPos);
 	Str(quote:String, string:String);
 	Block(bracket:String, children:Array<NogPos>);
 	Comment(comment:String);

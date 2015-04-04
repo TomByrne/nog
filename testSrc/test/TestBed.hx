@@ -40,7 +40,7 @@ class TestBed extends Sprite
 		tester.addTest(new SimpleBlock3().toString(), test.bind([Nog.Block("{", [Nog.Op('$',Nog.Label("Int")), Nog.Op('$',Nog.Label("Float")), Nog.Op('$',Nog.Label("String"))])], _, _), false);
 		tester.addTest(new MultipleExpr1().toString(), test.bind([p(0,6,Nog.Label("label", p(6,8,Nog.Op("=", p(8,18,Nog.Str('"', "String")))))), p(18,19,Nog.Op("!", p(19,23,Nog.Label("bang", p(23,24,Nog.Op(":", p(24,29,Nog.Label("colon"))))))))], _, _), false);
 		tester.addTest(new MultipleExpr2().toString(), test.bind([Nog.Comment(" single line comment +-=:;"), Nog.Op("+", Nog.Label("plusOp", Nog.Op("=", Nog.Str('"', "String")))), Nog.Op("-", Nog.Label("minusOp", Nog.Block("{", [Nog.Op("!", Nog.Label("bangOp"))])))], _, _), false);
-		tester.addTest(new ExprIfStatement().toString(), test.bind([Nog.Label("if", Nog.Block("(", [Nog.Label("expr1")])), Nog.Block("{", [Nog.Label("expr2")])], _, _), false);
+		tester.addTest(new ExprIfStatement().toString(), test.bind([Nog.Label("if", Nog.Block("(", [Nog.Label("expr1")]), Nog.Block("{", [Nog.Label("expr2")]))], _, _), false);
 		tester.running = true;
 	}
 	

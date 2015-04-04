@@ -34,8 +34,8 @@ enum TokenDef {
 	LiteralStr(quote:String, str:String);
 	LiteralBlock(bracket:String, children:Array<TokenPos>);
 	
-	Optional(def:TokenPos);
-	Alternate(children:Array<TokenPos>);
+	Optional(def:TokenPos, ?next:TokenPos);
+	Alternate(children:Array<TokenPos>, ?next:TokenPos);
 	Multi(def:TokenPos, ?min:Int, ?max:Int);
 	
 	Int();

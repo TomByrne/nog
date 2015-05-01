@@ -1,11 +1,16 @@
 package nog.lang;
 
+import nog.Nog;
+
 typedef LangDef =
 {
 	var name:String;
 	var fileExt:String;
-	var rootDef:TokenPos;
+	var readerType:String;
+	var file:String;
+	var rootDefs:Array<TokenPos>;
 	var identifierTypes:Array<String>;
+	var symbols:Array<Ref>;
 }
 
 #if (nogpos || macro)
@@ -13,6 +18,7 @@ typedef LangDef =
 typedef TokenPos =  {
 	var min:Int;
 	var max:Int;
+	var line:Int;
 	var file:String;
 	var tokenRef:TokenDef;
 }
@@ -25,18 +31,19 @@ typedef TokenPos = TokenDef;
 
 
 enum TokenDef {
-	Ident(type:String, ?next:TokenPos);
+	Ident(type:String, ?next1:TokenPos, ?next2:TokenPos);
+	Named(name:String, ?next:TokenPos);
 	
 	Ref(id:String, pointer:Pointer<TokenPos>, ?next:TokenPos);
 	
-	LiteralOp(op:String, def:TokenPos);
-	LiteralLabel(label:String, def:TokenPos);
+	LiteralOp(op:String, ?next1:TokenPos, ?next2:TokenPos);
+	LiteralLabel(label:String, ?next1:TokenPos, ?next2:TokenPos);
 	LiteralStr(quote:String, str:String);
 	LiteralBlock(bracket:String, children:Array<TokenPos>);
 	
 	Optional(def:TokenPos, ?next:TokenPos);
 	Alternate(children:Array<TokenPos>, ?next:TokenPos);
-	Multi(def:TokenPos, ?min:Int, ?max:Int);
+	Multi(def:TokenPos, min:Int, max:Int, ?next:TokenPos);
 	
 	Int();
 	Float();
@@ -52,28 +59,7 @@ typedef Pointer<T> = {
 	public var value:T;
 }
 
-/*class Pointer<T> {
-	
-	private static var LAST_ID :Int = 0;
-	
-	public var value:T;
-	public var id:Int;
-	private var isPrinting:Bool;
-	
-	public function new(?value:T) {
-		this.value = value;
-		this.id = LAST_ID++;
-	}
-	
-	public function toString():String {
-		var ret:String;
-		if(!isPrinting){
-			isPrinting = true;
-			var ret =  "*{"+id+"}" + value;
-			isPrinting = false;
-			return ret;
-		}else {
-			return "*{" + id + "}";
-		}
-	}
-}*/
+typedef Ref = {
+	public var name:String;
+	public var value:TokenPos;
+}

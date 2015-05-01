@@ -1,6 +1,6 @@
 package nog;
 
-import nog.Nog.NogPos;
+import nog.Nog;
 import nog.NogInterpreter.NogPending;
 import stringParser.core.AbstractInterpreter;
 import stringParser.core.StringParser;
@@ -11,8 +11,10 @@ import stringParser.parsers.NameValuePairParser;
 import stringParser.parsers.QuotedStringParser;
 import stringParser.parsers.CharListParser;
 import stringParser.parsers.WhitespaceParser;
+import stringParser.parsers.NumberParser;
 
 using nog.NogUtils;
+using StringTools;
 
 class NogInterpreter extends AbstractInterpreter
 {
@@ -36,6 +38,16 @@ class NogInterpreter extends AbstractInterpreter
 	private static function get_labelParser():CharListParser{
 		checkInit();
 		return labelParser;
+	}
+	public static var numberParser(get, null):NumberParser;
+	private static function get_numberParser():NumberParser{
+		checkInit();
+		return numberParser;
+	}
+	public static var hexParser(get, null):NumberParser;
+	private static function get_hexParser():NumberParser{
+		checkInit();
+		return hexParser;
 	}
 	public static var stringSingleParser(get, null):QuotedStringParser;
 	private static function get_stringSingleParser():QuotedStringParser{
@@ -97,11 +109,21 @@ class NogInterpreter extends AbstractInterpreter
 			
 			var blockChildParsers:Array<ICharacterParser> = [];
 			
+			hexParser = new NumberParser(true);
+			blockChildParsers.push(hexParser);
+			_nogConfig.push(hexParser);
+			
+			numberParser = new NumberParser(false);
+			blockChildParsers.push(numberParser);
+			_nogConfig.push(numberParser);
+			
 			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], 2, [";", "\n", "\r"]);
 			operatorParser.childParsers = [];
 			operatorParser.finishedParsers = [spaceParser];
 			_nogConfig.push(operatorParser);
 			blockChildParsers.push(operatorParser);
+			operatorParser.childParsers.push(hexParser);
+			operatorParser.childParsers.push(numberParser);
 			operatorParser.childParsers.push(operatorParser);
 			
 			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]), 2, [";", "\n", "\r"]);
@@ -110,7 +132,10 @@ class NogInterpreter extends AbstractInterpreter
 			_nogConfig.push(labelParser);
 			blockChildParsers.push(labelParser);
 			operatorParser.childParsers.push(labelParser);
+			labelParser.childParsers.push(hexParser);
+			labelParser.childParsers.push(numberParser);
 			labelParser.childParsers.push(operatorParser);
+			labelParser.childParsers.push(labelParser); // labels can follow labels
 			
 			stringSingleParser = new QuotedStringParser(["'"]);
 			blockChildParsers.push(stringSingleParser);
@@ -205,6 +230,7 @@ class NogInterpreter extends AbstractInterpreter
 		
 		pending.start = _stringParser.getStartIndex(id);
 		pending.end = _stringParser.getEndIndex(id);
+		pending.line = _stringParser.getLineIndex(id);
 		
 		if(parentId!=null){
 			var parent:NogPending = _pendingMap.get(parentId);
@@ -237,24 +263,36 @@ class NogInterpreter extends AbstractInterpreter
 	}
 	
 	function convertPending(pending:NogPending) {
-		var nogObj:Nog;
+		var nogObj:Nog = null;
 		
 		if (pending.parser == operatorParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
 			nogObj = Nog.Op(str, getChild(pending), getChild(pending, 1));
+			
+		}else if (pending.parser == numberParser) {
+			var str:String = cast pending.strings;
+			if(str.indexOf(".")==-1){
+				nogObj = Nog.Int(Std.parseInt(str), false);
+			}else {
+				nogObj = Nog.Float(Std.parseFloat(str));
+			}
+			
+		}else if (pending.parser == hexParser) {
+			var str:String = cast pending.strings;
+			nogObj = Nog.Int(Std.parseInt(str), true);
 			
 		}else if (pending.parser == labelParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
 			nogObj = Nog.Label(str, getChild(pending), getChild(pending, 1));
 			
 		}else if (pending.parser == stringSingleParser) {
-			nogObj = Nog.Str("'", pending.strings);
+			nogObj = Nog.Str(Quote.Single, pending.strings);
 			
 		}else if (pending.parser == stringDoubleParser) {
-			nogObj = Nog.Str('"', pending.strings);
+			nogObj = Nog.Str(Quote.Double, pending.strings);
 			
 		}else if (pending.parser == stringBacktickParser) {
-			nogObj = Nog.Str("`", pending.strings);
+			nogObj = Nog.Str(Quote.Backtick, pending.strings);
 			
 		}else if (pending.parser == commentSingleParser) {
 			nogObj = Nog.Comment(pending.strings);
@@ -263,23 +301,23 @@ class NogInterpreter extends AbstractInterpreter
 			nogObj = Nog.CommentMulti(pending.strings);
 			
 		}else if (pending.parser == curlyBlockParser) {
-			nogObj = Nog.Block("{", pending.childrenNog);
+			nogObj = Nog.Block(Bracket.Curly, pending.childrenNog!=null ? pending.childrenNog : [] );
 			
 		}else if (pending.parser == squareBlockParser) {
-			nogObj = Nog.Block("[", pending.childrenNog);
+			nogObj = Nog.Block(Bracket.Square,  pending.childrenNog!=null ? pending.childrenNog : []);
 			
 		}else if (pending.parser == roundBlockParser) {
-			nogObj = Nog.Block("(", pending.childrenNog);
+			nogObj = Nog.Block(Bracket.Round,  pending.childrenNog!=null ? pending.childrenNog : []);
 			
 		}else if (pending.parser == angleBlockParser) {
-			nogObj = Nog.Block("<", pending.childrenNog);
+			nogObj = Nog.Block(Bracket.Angle,  pending.childrenNog!=null ? pending.childrenNog : []);
 			
 		}else {
 			throw "Something went very wrong";
 		}
 		
 		
-		var nogPos = nogObj.pos(pending.start, pending.end, currentFilePath);
+		var nogPos = nogObj.pos(currentFilePath, pending.start, pending.end, pending.line);
 		
 		if (pending.parent==null) {
 			_nogResult.unshift(nogPos);
@@ -291,8 +329,18 @@ class NogInterpreter extends AbstractInterpreter
 		NogPending.ret(pending);
 	}
 	
-	@:inline
-	function getChild(pending:NogPending, index:Int=0):NogPos{
+	function charList(str:String, chars:Array<String>) :Bool
+	{
+		var char = 0;
+		var l = str.length;
+		if(l==0)return false;
+		while (char < l) {
+			if (chars.indexOf(str.charAt(char) ) == -1) return false;
+			char++;
+		}
+		return true;
+	}
+	inline function getChild(pending:NogPending, index:Int=0):NogPos{
 		return pending.childrenNog == null || pending.childrenNog.length<=index ? null : pending.childrenNog[index];
 	}
 }
@@ -328,8 +376,10 @@ class NogPending {
 	public var childrenPending:Array<NogPending>;
 	public var childrenNog:Array<NogPos>;
 	public var parent:NogPending;
+	
 	public var start:Int;
 	public var end:Int;
+	public var line:Int;
 	
 	public function new() {
 		

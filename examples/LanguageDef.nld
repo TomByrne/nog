@@ -1,0 +1,35 @@
+@name = "Composure Expression Language"
+@fileExt = "cel"
+- + :ExprId \{!ITEM_PROPS}
+!ITEM_PROPS + |[
+	^inherits \^ :RefId
+	^traits \& ?[:prop \:] :typeName ? !EXPRS
+	^objs \* ?[:prop \:] :typeName ? !EXPRS
+	^children \+ :prop ?{!ITEM_PROPS}
+	^exprs !EXPRS
+]
+!EXPRS |[
+	\{+ !EXPR}
+	!EXPR
+]
+!EXPR |[
+	:prop \= !EXPR
+	:prop !EXPR
+	\*= !EXPR
+	\+= !EXPR
+	\-= !EXPR
+	\/= !EXPR
+	\^= !EXPR
+	\!= !EXPR
+	\%= !EXPR
+	\* !EXPR
+	\+ !EXPR
+	\- !EXPR
+	\/ !EXPR
+	\^ !EXPR
+	\/ !EXPR
+	\% !EXPR
+	$Int
+	$Float
+	$String (true;true;false)
+]

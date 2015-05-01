@@ -1,0 +1,66 @@
+
+System{
+	
+	*Renderer
+	*PhysicsEngine{
+		gravityY = -10;
+	}
+
+
+	+root{
+		&trans:Transform
+		&Renderable
+
+		*Background
+
+		+enemy1{
+			^LittleEnemy
+
+			model.color = #ff0000;
+			trans.x = -100;
+			phys.weight = 5;
+		}
+
+		+enemy2{
+			^LittleEnemy
+
+			model.color = #00ff00;
+			trans.x = 100;
+			phys.weight = 10;
+		}
+
+		+player{
+			^Player
+
+			trans.copyFrom(root.spawnPoint.trans);
+		}
+
+		+spawnPoint{
+			&trans:Transform
+
+			trans.x = 50;
+			trans.y = 90;
+			trans.rotX = 45;
+		}
+	}
+}
+
+Player{
+	^GameEntity
+
+	*model:PlayerModel
+	*cont:PlayerController
+}
+
+LittleEnemy{
+	^GameEntity
+
+	*model:EnemyModel
+}
+
+GameEntity{
+	&trans:Transform
+	&phys:PhysicsBody
+	&Renderable
+	&Geometry
+}

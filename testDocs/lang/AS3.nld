@@ -1,0 +1,96 @@
+@name = "Actionscript 3"
+@fileExt = "as"
+@reader = "nog.lang.ClassReader"
+
+- \package :module \{
+	? + \import :importType;
+
+	\public |[
+		!CLASS
+		#!INTERFACE
+	]
+}
+- ? + |[
+	!CLASS
+	#!INTERFACE
+]
+
+!CLASS \class :typeName ?[\extends :extendsType] ?[\implements :implType ? + \, :implType ] \{
+	? + |[
+		#^staticBlock \{ ? + !EXPR_ALL }
+		^metadata \[:metadataName ? \( |[ $String (true;true;false); + :argName \= $String (true;true;false)] )]
+		+[ !CLASS_MOD ] !CLASS_MEMBER
+	]
+}
+
+
+!CLASS_MEMBER |[
+	\function |[ !GETTER ; !SETTER ; !FUNC] # !FUNC_BODY
+	^var \var :memberName \: :memberType ? \= !LITERAL;
+	#^const \const :memberName \: :memberType ? \= !LITERAL;
+]
+
+!LITERAL |[
+	$Int
+	$Float
+	$String (true;true;false)
+]
+
+
+!CLASS_MOD |[
+	\public
+	\private
+	\protected
+	\override
+	\static
+	\final
+]
+
+
+!GETTER ^getter \get :memberName \() \: :memberType
+
+!SETTER ^setter \set :memberName \( :argName \: :argType ) \: :memberType
+
+!FUNC ^func :memberName \( + :argName \: :argType ? \= ^argDefault !LITERAL ) \: :memberType
+
+##
+
+!INTERFACE \interface :typeName ?[\extends :implType ? + \, :implType ] \{
+	? + |[
+		\function |[ !GETTER ; !SETTER ; !FUNC] !FUNC_BODY
+	]
+}
+
+!FUNC_BODY \{
+	? + !EXPR_ALL
+}
+
+!ASSIGN ^assign :ident |[
+	^eq \=  !EXPR
+	^eqMulti \*= !EXPR
+	^eqAdd \+= !EXPR
+	^eqMinus \-= !EXPR
+	^eqDivide \/= !EXPR
+	^eqPow \^= !EXPR
+	^eqNeg \!= !EXPR
+	^eqModu \%= !EXPR
+]
+
+!EXPR \[!LITERAL; :ident] ? |[
+	^multi \* !EXPR_ALL
+	^plus \+ !EXPR_ALL
+	^minus \- !EXPR_ALL
+	^divide \/ !EXPR_ALL
+	^power \^ !EXPR_ALL
+	^negate \! !EXPR_ALL
+	^modulo \% !EXPR_ALL
+	!ASSIGN
+]
+
+!EXPR_ALL |[
+	!ASSIGN
+	!LITERAL
+	!EXPR
+]
+
+##

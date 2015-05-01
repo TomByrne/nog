@@ -3,19 +3,17 @@ package test;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.TimerEvent;
+import flash.utils.ByteArray;
 import flash.utils.Timer;
 import nog.lang.LangDef;
 import nog.lang.LangDefInterpreter;
 import nog.lang.LangInterpreter;
 import nog.lang.LangMacro;
-import nog.NogInterpreter;
-import stringParser.core.StringParser;
-import stringParser.core.StringParserIterator;
-import flash.utils.ByteArray;
-import nog.Nog;
 import stringParser.test.*;
+import haxe.macro.Expr;
 
 using nog.NogUtils;
+using nog.lang.LangUtils;
 
 class TestLangParse extends Sprite
 {
@@ -34,17 +32,48 @@ class TestLangParse extends Sprite
 		timer.start();
 	}
 	function onTimer(e:Event):Void {
-		//var langDef:LangDef = LangMacro.getLangDef("../examples/LanguageDef.nog");
+		//var langDef:LangDef = LangMacro.getLang("../examples/LanguageDef.nog");
+		//LangMacro.addLang("../examples/LanguageDef.nog");
+		//LangMacro.addCodeFile("../examples/ComposureDef.nld");
 		
-		var langDefInterp = new LangDefInterpreter(new LanguageDef().toString());
-		langDefInterp.currentFilePath = "../examples/LanguageDef.nog";
+		/*var langStr = new LanguageDef().toString();
+		var langDefInterp = new LangDefInterpreter(langStr);
+		langDefInterp.currentFilePath = "../examples/LanguageDef.nld";
 		var iterator = langDefInterp.getIterator();
 		iterator.iterateSynchronous();
-		var langDef:LangDef = langDefInterp.getLangDef();
-		var testlangDef = langDef;
+		var langDef:LangDef = langDefInterp.getLangDef();*/
 		
+		/*var langInterp = new LangInterpreter(langDef, new ComposureDef().toString());
+		langInterp.currentFilePath = "../examples/ComposureDef.cel";
+		var iterator = langInterp.getIterator();
+		iterator.iterateSynchronous();
+		var modules = langInterp.getModules();
+		modules;*/
+		
+		//  --- AS3 ---
+		
+		/*var langStr = new As3Def().toString();
+		var langDefInterp = new LangDefInterpreter(langStr);
+		langDefInterp.currentFilePath = "../testDocs/lang/AS3.nld";
+		var iterator = langDefInterp.getIterator();
+		iterator.iterateSynchronous();
+		var langDef:LangDef = langDefInterp.getLangDef();*/
+		
+		var langDef:LangDef = LangMacro.getLang("../testDocs/lang/AS3.nld");
+		langDef.resolveRefs();
+		var langInterp = new LangInterpreter<Array<TypeDefinition>>(langDef, new AS3Lang().toString());
+		langInterp.currentFilePath = "../testDocs/lang/AS3.as";
+		var iterator = langInterp.getIterator();
+		iterator.iterateSynchronous();
+		var modules = langInterp.getResult();
+		
+		/*LangMacro.addLang("../testDocs/lang/AS3.nld");
+		LangMacro.addCodeFile("../testDocs/lang/AS3.as");*/
 	}
 }
 
-@:file("../examples/LanguageDef.nog") class LanguageDef extends ByteArray{}
-@:file("../examples/ComposureDef.nog") class ComposureDef extends ByteArray{}
+@:file("../examples/LanguageDef.nld") class LanguageDef extends ByteArray{}
+@:file("../examples/ComposureDef.cel") class ComposureDef extends ByteArray{}
+
+@:file("../testDocs/lang/AS3.nld") class As3Def extends ByteArray{}
+@:file("../testDocs/lang/AS3.as") class AS3Lang extends ByteArray{}

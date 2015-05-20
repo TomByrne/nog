@@ -242,6 +242,12 @@ class LangInterpreter<T> implements IInterpreter
 			case  TokenDef.String(acceptSingle, acceptDouble, acceptBacktick):
 				ret = interpStr(acceptSingle, acceptDouble, acceptBacktick, nogPos, lastParsed, throwError);
 				
+			case  TokenDef.Int:
+				ret = interpInt(nogPos, lastParsed, throwError);
+				
+			case  TokenDef.Float:
+				ret = interpFloat(nogPos, lastParsed, throwError);
+				
 				
 			default:
 				if (throwError) {
@@ -293,6 +299,30 @@ class LangInterpreter<T> implements IInterpreter
 				
 			default:
 				addInterpError(nogPos, lastParsed, throwError, err);
+				return InterpResp.NoMatch;
+		}
+	}
+	
+	function interpInt(nogPos:Null<NogPos>, lastParsed:Null<NogPos>, throwError:Bool)  : InterpResp
+	{
+		switch(nogPos.nog()) {
+			case Nog.Int(value, hex): 
+				return InterpResp.Match;
+				
+			default:
+				addInterpError(nogPos, lastParsed, throwError, "Expected an Int here");
+				return InterpResp.NoMatch;
+		}
+	}
+	
+	function interpFloat(nogPos:Null<NogPos>, lastParsed:Null<NogPos>, throwError:Bool)  : InterpResp
+	{
+		switch(nogPos.nog()) {
+			case Nog.Float(value):
+				return InterpResp.Match;
+				
+			default:
+				addInterpError(nogPos, lastParsed, throwError, "Expected a Float here");
 				return InterpResp.NoMatch;
 		}
 	}

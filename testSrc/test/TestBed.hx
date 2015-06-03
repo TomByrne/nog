@@ -29,17 +29,21 @@ class TestBed extends Sprite
 	}
 	function onTimer(e:Event):Void{
 		var tester:FileStringParserTester<Array<NogPos>> = new FileStringParserTester("NOG", new NogInterpreter());
-		tester.addTest(new CommentSingle1().toString(), test.bind([p(0,9,0, Nog.Comment(" comment"))], _, _), false);
+		tester.addTest(new CommentSingle1().toString(), test.bind([p(0,9,0, Nog.Comment("comment"))], _, _), false);
 		tester.addTest(new CommentMulti1().toString(), test.bind([p(0,22,0,Nog.CommentMulti(" comment\r\nmulti \r\n"))], _, _), false);
 		tester.addTest(new SimpleOp1().toString(), test.bind([p(0,1,0,Nog.Op("+", p(1,7,0,Nog.Label("plusOp"))))], _, _), false);
 		tester.addTest(new SimpleOp2().toString(), test.bind([p(0,1,0,Nog.Op(".", p(1,7,0,Nog.Label("dotOp", p(7,10,0,Nog.Op("+=", p(10,11,0,Nog.Op("*", p(11,17,0,Nog.Label("starOp"))))))))))], _, _), false);
-		tester.addTest(new SimpleBlock1().toString(), test.bind([p(0,23,0,Nog.Block(Bracket.Curly, [p(4,9,0,Nog.Label("label", p(9,11,0,Nog.Op(":", p(11,19,0,Nog.Str(Quote.Double, "String"))))))]))], _, _), false);
-		tester.addTest(new SimpleBlock2().toString(), test.bind([p(0,29,0,Nog.Block(Bracket.Angle, [p(4,10,0,Nog.Str(Quote.Double,"Str1")), p(11,20,0,Nog.Str(Quote.Single,"Str2")), p(20,29,0,Nog.Str(Quote.Backtick,"Str3"))]))], _, _), false);
-		tester.addTest(new SimpleBlock3().toString(), test.bind([Nog.Block(Bracket.Curly, [Nog.Op('$',Nog.Label("Int")), Nog.Op('$',Nog.Label("Float")), Nog.Op('$',Nog.Label("String"))])], _, _), false);
+		tester.addTest(new SimpleBlock1().toString(), test.bind([p(0,23,0,Nog.Block(Bracket.Curly, [p(4,9,0,Nog.Label("label", p(9,11,0,Nog.Op(":", p(11,19,0,Nog.Str(Quote.Double, "String"))))))], null, BlockBreak.Newline))], _, _), false);
+		tester.addTest(new SimpleBlock2().toString(), test.bind([p(0,29,0,Nog.Block(Bracket.Angle, [p(4,10,0,Nog.Str(Quote.Double,"Str1")), p(11,20,0,Nog.Str(Quote.Single,"Str2")), p(20,29,0,Nog.Str(Quote.Backtick,"Str3"))], null, BlockBreak.Newline))], _, _), false);
+		tester.addTest(new SimpleBlock3().toString(), test.bind([Nog.Block(Bracket.Curly, [Nog.Op('$',Nog.Label("Int")), Nog.Op('$',Nog.Label("Float")), Nog.Op('$',Nog.Label("String"))], null, BlockBreak.Newline)], _, _), false);
 		tester.addTest(new MultipleExpr1().toString(), test.bind([p(0,6,0,Nog.Label("label", p(6,8,0,Nog.Op("=", p(8,18,0,Nog.Str(Quote.Double, "String")))))), p(18,19,0,Nog.Op("!", p(19,23,0,Nog.Label("bang", p(23,24,0,Nog.Op(":", p(24,29,0,Nog.Label("colon"))))))))], _, _), false);
-		tester.addTest(new MultipleExpr2().toString(), test.bind([Nog.Comment(" single line comment +-=:;"), Nog.Op("+", Nog.Label("plusOp", Nog.Op("=", Nog.Str(Quote.Double, "String")))), Nog.Op("-", Nog.Label("minusOp", Nog.Block(Bracket.Curly, [Nog.Op("!", Nog.Label("bangOp"))])))], _, _), false);
-		tester.addTest(new ExprIfStatement().toString(), test.bind([Nog.Label("if", Nog.Block(Bracket.Round, [Nog.Label("expr1")]), Nog.Block(Bracket.Curly, [Nog.Label("expr2")]))], _, _), false);
+		tester.addTest(new MultipleExpr2().toString(), test.bind([Nog.Comment(" single line comment +-=:;"), Nog.Op("+", Nog.Label("plusOp", Nog.Op("=", Nog.Str(Quote.Double, "String")))), Nog.Op("-", Nog.Label("minusOp", Nog.Block(Bracket.Curly, [Nog.Op("!", Nog.Label("bangOp"))], null, BlockBreak.Newline)))], _, _), false);
+		tester.addTest(new ExprIfStatement().toString(), test.bind([Nog.Label("if", Nog.Block(Bracket.Round, [Nog.Label("expr1")], Nog.Block(Bracket.Curly, [Nog.Label("expr2")], null, BlockBreak.Newline)))], _, _), false);
 		tester.addTest(new Literals1().toString(), test.bind([Nog.Int(12, false), Nog.Float(12.5), Nog.Int(-12, false), Nog.Float(-12.5), Nog.Int(16, true)], _, _), false);
+		tester.addTest(new SubsBlocks1().toString(), test.bind([Nog.Op("?", Nog.Block(Bracket.Square, [Nog.Label("extends")], Nog.Op("?", Nog.Block(Bracket.Square, [Nog.Label("implements")]))))], _, _), false);
+		tester.addTest(new NestedArray1().toString(), test.bind([Nog.Block(Bracket.Square, [Nog.Label("hello", Nog.Op(",",Nog.Label("hello2", Nog.Op(",", Nog.Block(Bracket.Square, [Nog.Int(1, false, Nog.Op(",", Nog.Int(2, false, Nog.Op(",", Nog.Int(3, false)))))])))))])], _, _), false);
+		tester.addTest('{"Boolean":"Bool"}', test.bind([Nog.Block(Bracket.Curly, [Nog.Str(Quote.Double, "Boolean", Nog.Op(":", Nog.Str('"', "Bool")))])], _, _), false);
+		
 		tester.running = true;
 	}
 	
@@ -79,3 +83,5 @@ class TestBed extends Sprite
 @:file("../testDocs/multipleExpr2.txt") class MultipleExpr2 extends ByteArray{}
 @:file("../testDocs/exprIfStatement.txt") class ExprIfStatement extends ByteArray{}
 @:file("../testDocs/literals1.txt") class Literals1 extends ByteArray{}
+@:file("../testDocs/subsequentBlocks.txt") class SubsBlocks1 extends ByteArray{}
+@:file("../testDocs/nestedArray.txt") class NestedArray1 extends ByteArray{}

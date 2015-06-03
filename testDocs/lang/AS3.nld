@@ -1,23 +1,32 @@
 @name = "Actionscript 3"
 @fileExt = "as"
-@reader = "nog.lang.ClassReader"
+@reader = "nog.lang.read.ClassReader"
+@reader.typeSwap = {"Boolean":"Bool", "int":"Int", "Number":"Float"};
 
-- \package :module \{
+
+
+- \package :[module.] \{
 	? + \import :importType;
 
 	\public |[
 		!CLASS
-		#!INTERFACE
+		!INTERFACE
 	]
 }
 - ? + |[
 	!CLASS
-	#!INTERFACE
+	!INTERFACE
 ]
 
-!CLASS \class :typeName ?[\extends :extendsType] ?[\implements :implType ? + \, :implType ] \{
+!INTERFACE ^interface \interface :typeName ?[\extends :[implType.] ? + \, :[implType.] ] \{
 	? + |[
-		#^staticBlock \{ ? + !EXPR_ALL }
+		\function |[ !GETTER ; !SETTER ; !FUNC]
+	]
+}
+
+!CLASS ^class \class :typeName ?[\extends :[extendsType.]] ?[\implements :[implType.] ? + \, :[implType.] ] \{
+	? + |[
+		^staticBlock \{ ? + !EXPR_ALL }
 		^metadata \[:metadataName ? \( |[ $String (true;true;false); + :argName \= $String (true;true;false)] )]
 		+[ !CLASS_MOD ] !CLASS_MEMBER
 	]
@@ -25,15 +34,16 @@
 
 
 !CLASS_MEMBER |[
-	\function |[ !GETTER ; !SETTER ; !FUNC] # !FUNC_BODY
+	\function |[ !GETTER ; !SETTER ; !FUNC] !FUNC_BODY
 	^var \var :memberName \: :memberType ? \= !LITERAL;
-	#^const \const :memberName \: :memberType ? \= !LITERAL;
+	^var \const :memberName \: :memberType ? \= !LITERAL;
 ]
 
 !LITERAL |[
 	$Int
 	$Float
 	$String (true;true;false)
+	!BOOL
 ]
 
 
@@ -46,51 +56,72 @@
 	\final
 ]
 
+!BOOL |[
+	\true
+	\false
+]
+
 
 !GETTER ^getter \get :memberName \() \: :memberType
 
 !SETTER ^setter \set :memberName \( :argName \: :argType ) \: :memberType
 
-!FUNC ^func :memberName \( + :argName \: :argType ? \= ^argDefault !LITERAL ) \: :memberType
+!FUNC ^func :memberName \( ? !FUNC_ARG ) \: :memberType
 
-##
-
-!INTERFACE \interface :typeName ?[\extends :implType ? + \, :implType ] \{
-	? + |[
-		\function |[ !GETTER ; !SETTER ; !FUNC] !FUNC_BODY
-	]
-}
+!FUNC_ARG :argName \: :argType ?[ \= ^argDefault !LITERAL ] ?[\, !FUNC_ARG];
 
 !FUNC_BODY \{
-	? + !EXPR_ALL
+	? + !C_LIKE
 }
 
-!ASSIGN ^assign :ident |[
-	^eq \=  !EXPR
-	^eqMulti \*= !EXPR
-	^eqAdd \+= !EXPR
-	^eqMinus \-= !EXPR
-	^eqDivide \/= !EXPR
-	^eqPow \^= !EXPR
-	^eqNeg \!= !EXPR
-	^eqModu \%= !EXPR
+!C_LIKE |[
+	\if \( ? + !EXPR_ALL ) \{ ? + !C_LIKE };
+	\for \( ? + !EXPR_ALL ; ? + !EXPR_ALL ; ? + !EXPR_ALL ) \{ ? + !C_LIKE };
+	\while \{
+		? + [ + \case \: ? + !C_LIKE];
+		? [ \default \: ? + !C_LIKE]
+	}
+	\delete !IDENT;
+	!EXPR_ALL;
 ]
 
-!EXPR \[!LITERAL; :ident] ? |[
-	^multi \* !EXPR_ALL
-	^plus \+ !EXPR_ALL
-	^minus \- !EXPR_ALL
-	^divide \/ !EXPR_ALL
-	^power \^ !EXPR_ALL
-	^negate \! !EXPR_ALL
-	^modulo \% !EXPR_ALL
-	!ASSIGN
-]
+!IDENT :[exprIdent.] ? \[ :EXPR_ALL ]
 
 !EXPR_ALL |[
-	!ASSIGN
-	!LITERAL
-	!EXPR
+	!LITERAL ? !EXPR;
+	!IDENT ? !EXPR_OP;
 ]
 
-##
+!EXPR |[
+	\* !EXPR_ALL
+	\+ !EXPR_ALL
+	\- !EXPR_ALL
+	\/ !EXPR_ALL
+	\^ !EXPR_ALL
+	\! !EXPR_ALL
+	\% !EXPR_ALL
+	\| !EXPR_ALL
+]
+
+!EXPR_OP |[
+	\* !EXPR_ALL
+	\+ !EXPR_ALL
+	\- !EXPR_ALL
+	\/ !EXPR_ALL
+	\^ !EXPR_ALL
+	\! !EXPR_ALL
+	\% !EXPR_ALL
+	\| !EXPR_ALL
+
+	\=  !EXPR_ALL
+	\*= !EXPR_ALL
+	\+= !EXPR_ALL
+	\-= !EXPR_ALL
+	\/= !EXPR_ALL
+	\^= !EXPR_ALL
+	\!= !EXPR_ALL
+	\%= !EXPR_ALL
+	\|= !EXPR_ALL
+
+	\( ?[ !EXPR_ALL ?[ \, !EXPR_ALL] ] );
+]

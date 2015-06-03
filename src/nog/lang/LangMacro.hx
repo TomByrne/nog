@@ -5,7 +5,7 @@ import sys.io.File;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
-import nog.lang.ClassReader;
+import nog.lang.read.ClassReader;
 #end
 
 class LangMacro

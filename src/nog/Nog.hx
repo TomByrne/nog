@@ -2,15 +2,15 @@ package nog;
 
 enum Nog
 {
-	Op(op:String, ?child1:NogPos, ?child2:NogPos);
-	Label(label:String, ?child1:NogPos, ?child2:NogPos);
-	Block(bracket:String, children:Array<NogPos>);
+	Op(op:String, ?next:NogPos);
+	Label(label:String, ?next:NogPos);
+	Block(bracket:String, children:Array<NogPos>, ?next:NogPos, ?blockBreak:String);
 	Comment(comment:String);
-	CommentMulti(comment:String);
+	CommentMulti(comment:String, ?next:NogPos);
 	
-	Str(quote:String, string:String);
-	Int(value:Int, hex:Bool);
-	Float(value:Float);
+	Str(quote:String, string:String, ?next:NogPos);
+	Int(value:Int, hex:Bool, ?next:NogPos);
+	Float(value:Float, ?next:NogPos);
 }
 
 abstract Bracket(String) {
@@ -18,6 +18,13 @@ abstract Bracket(String) {
 	public static var Square = "[";
 	public static var Curly = "{";
 	public static var Angle = "<";
+}
+
+abstract BlockBreak(String) {
+	//public static var Comma = ",";
+	public static var SemiColon = ";";
+	public static var Newline = "\n";
+	public static var Return = "\r";
 }
 
 abstract Quote(String) {

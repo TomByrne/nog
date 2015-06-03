@@ -1,8 +1,10 @@
 package nog;
 
 import nog.Nog;
+import nog.NogInterpreter.NogInterpConfig;
 import nog.NogInterpreter.NogPending;
 import stringParser.core.AbstractInterpreter;
+import stringParser.core.StringKeys;
 import stringParser.core.StringParser;
 import stringParser.core.StringParserIterator;
 import stringParser.parsers.BracketPairParser;
@@ -18,200 +20,332 @@ using StringTools;
 
 class NogInterpreter extends AbstractInterpreter
 {
+	public static var CONFIG_A:NogInterpConfig = { whitespace:[" "], singleCommentStart:["//"], singleCommentEnd:["\n", "\r"], multiCommentStart:["/*"], multiCommentEnd:["*/"], blockBreaks:[";", "\n", "\r"], operators:["+", "-", "=", "*", "#", "$", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], allowBrackets:[Bracket.Angle, Bracket.Curly, Bracket.Round, Bracket.Square] };
+	
 	public function getNog():Array<NogPos>{
 		return _nogResult;
 	}
 	
-	
-	public static var nogConfig(get, null):Array<ICharacterParser>;
-	private static function get_nogConfig():Array<ICharacterParser>{
-		checkInit();
-		return _nogConfig;
-	}
-	
-	public static var operatorParser(get, null):CharListParser;
-	private static function get_operatorParser():CharListParser{
+	/*public var operatorParser(get, null):CharListParser;
+	private function get_operatorParser():CharListParser{
 		checkInit();
 		return operatorParser;
 	}
-	public static var labelParser(get, null):CharListParser;
-	private static function get_labelParser():CharListParser{
+	public var labelParser(get, null):CharListParser;
+	private function get_labelParser():CharListParser{
 		checkInit();
 		return labelParser;
 	}
-	public static var numberParser(get, null):NumberParser;
-	private static function get_numberParser():NumberParser{
+	public var numberParser(get, null):NumberParser;
+	private function get_numberParser():NumberParser{
 		checkInit();
 		return numberParser;
 	}
-	public static var hexParser(get, null):NumberParser;
-	private static function get_hexParser():NumberParser{
+	public var hexParser(get, null):NumberParser;
+	private function get_hexParser():NumberParser{
 		checkInit();
 		return hexParser;
 	}
-	public static var stringSingleParser(get, null):QuotedStringParser;
-	private static function get_stringSingleParser():QuotedStringParser{
+	public var stringSingleParser(get, null):QuotedStringParser;
+	private function get_stringSingleParser():QuotedStringParser{
 		checkInit();
 		return stringSingleParser;
 	}
-	public static var stringDoubleParser(get, null):QuotedStringParser;
-	private static function get_stringDoubleParser():QuotedStringParser{
+	public var stringDoubleParser(get, null):QuotedStringParser;
+	private function get_stringDoubleParser():QuotedStringParser{
 		checkInit();
 		return stringDoubleParser;
 	}
-	public static var stringBacktickParser(get, null):QuotedStringParser;
-	private static function get_stringBacktickParser():QuotedStringParser{
+	public var stringBacktickParser(get, null):QuotedStringParser;
+	private function get_stringBacktickParser():QuotedStringParser{
 		checkInit();
 		return stringBacktickParser;
 	}
-	public static var curlyBlockParser(get, null):BracketPairParser;
-	private static function get_curlyBlockParser():BracketPairParser{
+	public var curlyBlockParser(get, null):BracketPairParser;
+	private function get_curlyBlockParser():BracketPairParser{
 		checkInit();
 		return curlyBlockParser;
 	}
-	public static var squareBlockParser(get, null):BracketPairParser;
-	private static function get_squareBlockParser():BracketPairParser{
+	public var squareBlockParser(get, null):BracketPairParser;
+	private function get_squareBlockParser():BracketPairParser{
 		checkInit();
 		return squareBlockParser;
 	}
-	public static var angleBlockParser(get, null):BracketPairParser;
-	private static function get_angleBlockParser():BracketPairParser{
+	public var angleBlockParser(get, null):BracketPairParser;
+	private function get_angleBlockParser():BracketPairParser{
 		checkInit();
 		return angleBlockParser;
 	}
-	public static var roundBlockParser(get, null):BracketPairParser;
-	private static function get_roundBlockParser():BracketPairParser{
+	public var roundBlockParser(get, null):BracketPairParser;
+	private function get_roundBlockParser():BracketPairParser{
 		checkInit();
 		return roundBlockParser;
 	}
-	public static var commentSingleParser(get, null):QuotedStringParser;
-	private static function get_commentSingleParser():QuotedStringParser{
+	public var commentSingleParser(get, null):QuotedStringParser;
+	private function get_commentSingleParser():QuotedStringParser{
 		checkInit();
 		return commentSingleParser;
 	}
-	public static var commentMultiParser(get, null):QuotedStringParser;
-	private static function get_commentMultiParser():QuotedStringParser{
+	public var commentMultiParser(get, null):QuotedStringParser;
+	private function get_commentMultiParser():QuotedStringParser{
 		checkInit();
 		return commentMultiParser;
 	}
-	public static var lineEndingParser(get, null):CharListParser;
-	private static function get_lineEndingParser():CharListParser{
+	public var lineEndingParser(get, null):CharListParser;
+	private function get_lineEndingParser():CharListParser{
 		checkInit();
 		return lineEndingParser;
-	}
+	}*/
 
-	private static function checkInit():Void{
-		if(_nogConfig==null){
-			_nogConfig = [];
-			_nogConfig.push(WhitespaceParser.instance);
+	/*private static function getConfig(config:Null<NogInterpConfig>):Array<ICharacterParser> {
+		if (config == null) config = CONFIG_A;
+		var configKey = config.allowBrackets.join(" ") + "_" + config.blockBreaks.join(" ") + "_" + config.multiCommentEnd.join(" ") + "_" + config.multiCommentStart.join(" ") + "_" + config.operators.join(" ") + "_" + config.singleCommentEnd.join(" ") + "_" + config.singleCommentStart.join(" ") + "_" + config.whitespace.join(" ");
+		var nogConfig = _nogConfigs.get(configKey);
+		if(nogConfig==null){
+			nogConfig = [];
+			nogConfig.push(WhitespaceParser.instance);
 			
-			var spaceParser = new WhitespaceParser([" "]);
+			var spaceParser = new WhitespaceParser(config.whitespace);
 			
-			var blockChildParsers:Array<ICharacterParser> = [];
+			var childParsers:Array<ICharacterParser> = [spaceParser];
 			
-			hexParser = new NumberParser(true);
-			blockChildParsers.push(hexParser);
-			_nogConfig.push(hexParser);
+			var exprBreaks = config.blockBreaks;
 			
-			numberParser = new NumberParser(false);
-			blockChildParsers.push(numberParser);
-			_nogConfig.push(numberParser);
+			var hexParser = new NumberParser(true);
+			nogConfig.push(hexParser);
+			childParsers.push(hexParser);
 			
-			operatorParser = new CharListParser(["+", "-", "=", "*", "$", "*", ".", ",", "?", "!", "/", "\\", "@", "~", "|", "^", "%", "&", ":"], 2, [";", "\n", "\r"]);
-			operatorParser.childParsers = [];
-			operatorParser.finishedParsers = [spaceParser];
-			_nogConfig.push(operatorParser);
-			blockChildParsers.push(operatorParser);
-			operatorParser.childParsers.push(hexParser);
-			operatorParser.childParsers.push(numberParser);
-			operatorParser.childParsers.push(operatorParser);
+			var numberParser = new NumberParser(false);
+			nogConfig.push(numberParser);
+			childParsers.push(numberParser);
 			
-			labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_", "."]), 2, [";", "\n", "\r"]);
-			labelParser.childParsers = [];
-			labelParser.finishedParsers = [spaceParser];
-			_nogConfig.push(labelParser);
-			blockChildParsers.push(labelParser);
-			operatorParser.childParsers.push(labelParser);
-			labelParser.childParsers.push(hexParser);
-			labelParser.childParsers.push(numberParser);
-			labelParser.childParsers.push(operatorParser);
-			labelParser.childParsers.push(labelParser); // labels can follow labels
+			var commentMultiParser = new QuotedStringParser(config.multiCommentStart, config.multiCommentEnd);
+			nogConfig.push(commentMultiParser);
+			childParsers.push(commentMultiParser);
 			
-			stringSingleParser = new QuotedStringParser(["'"]);
-			blockChildParsers.push(stringSingleParser);
-			operatorParser.childParsers.push(stringSingleParser);
+			var commentSingleParser = new QuotedStringParser(config.singleCommentStart, config.singleCommentEnd);
+			nogConfig.push(commentSingleParser);
+			childParsers.push(commentSingleParser);
 			
-			stringDoubleParser = new QuotedStringParser(['"']);
-			blockChildParsers.push(stringDoubleParser);
-			operatorParser.childParsers.push(stringDoubleParser);
+			var operatorParser = new CharListParser(config.operators, 2, exprBreaks);
+			//operatorParser.childParsers = [];
+			//operatorParser.finishedParsers = [spaceParser];
+			nogConfig.push(operatorParser);
+			childParsers.push(operatorParser);
+			//operatorParser.childParsers.push(hexParser);
+			//operatorParser.childParsers.push(numberParser);
+			//operatorParser.childParsers.push(operatorParser);
+			//operatorParser.childParsers.push(commentMultiParser);
+			//operatorParser.childParsers.push(commentSingleParser);
 			
-			stringBacktickParser = new QuotedStringParser(['`']);
-			blockChildParsers.push(stringBacktickParser);
-			operatorParser.childParsers.push(stringBacktickParser);
+			var labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_"]), 2, exprBreaks);
+			//labelParser.childParsers = [];
+			//labelParser.finishedParsers = [spaceParser];
+			nogConfig.push(labelParser);
+			childParsers.push(labelParser);
+			//operatorParser.childParsers.push(labelParser);
+			//labelParser.childParsers.push(hexParser);
+			//labelParser.childParsers.push(numberParser);
+			//labelParser.childParsers.push(operatorParser);
+			//labelParser.childParsers.push(labelParser); // labels can follow labels
 			
-			commentMultiParser = new QuotedStringParser(['##']);
-			_nogConfig.push(commentMultiParser);
-			blockChildParsers.push(commentMultiParser);
-			operatorParser.childParsers.push(commentMultiParser);
+			var stringSingleParser = new QuotedStringParser(["'"]);
+			childParsers.push(stringSingleParser);
+			//operatorParser.childParsers.push(stringSingleParser);
 			
-			commentSingleParser = new QuotedStringParser(['#'], ["\n", "\r"]);
-			_nogConfig.push(commentSingleParser);
-			blockChildParsers.push(commentSingleParser);
-			operatorParser.childParsers.push(commentSingleParser);
+			var stringDoubleParser = new QuotedStringParser(['"']);
+			childParsers.push(stringDoubleParser);
+			//operatorParser.childParsers.push(stringDoubleParser);
 			
-			curlyBlockParser = new BracketPairParser("{","}",null,[";", "\n", "\r"]);
-			_nogConfig.push(curlyBlockParser);
-			operatorParser.childParsers.push(curlyBlockParser);
-			labelParser.childParsers.push(curlyBlockParser);
-			blockChildParsers.push(curlyBlockParser);
+			var stringBacktickParser = new QuotedStringParser(['`']);
+			childParsers.push(stringBacktickParser);
+			//operatorParser.childParsers.push(stringBacktickParser);
 			
-			squareBlockParser = new BracketPairParser("[","]",null,[";", "\n", "\r"]);
-			_nogConfig.push(squareBlockParser);
-			operatorParser.childParsers.push(squareBlockParser);
-			labelParser.childParsers.push(squareBlockParser);
-			blockChildParsers.push(squareBlockParser);
+			if(config.allowBrackets.indexOf(Bracket.Curly)!=-1){
+				var curlyBlockParser = new BracketPairParser("{","}",null, exprBreaks);
+				nogConfig.push(curlyBlockParser);
+				//operatorParser.childParsers.push(curlyBlockParser);
+				//labelParser.childParsers.push(curlyBlockParser);
+				childParsers.push(curlyBlockParser);
+				curlyBlockParser.childParsers = childParsers;
+				curlyBlockParser.nextTokenParsers = childParsers;
+			}
 			
-			angleBlockParser = new BracketPairParser("<",">",null,[";", "\n", "\r"]);
-			_nogConfig.push(angleBlockParser);
-			operatorParser.childParsers.push(angleBlockParser);
-			labelParser.childParsers.push(angleBlockParser);
-			blockChildParsers.push(angleBlockParser);
+			if(config.allowBrackets.indexOf(Bracket.Square)!=-1){
+				var squareBlockParser = new BracketPairParser("[","]",null, exprBreaks);
+				nogConfig.push(squareBlockParser);
+				//operatorParser.childParsers.push(squareBlockParser);
+				//labelParser.childParsers.push(squareBlockParser);
+				childParsers.push(squareBlockParser);
+				squareBlockParser.childParsers = childParsers;
+				squareBlockParser.nextTokenParsers = childParsers;
+			}
 			
-			roundBlockParser = new BracketPairParser("(",")",null,[";", "\n", "\r"]);
-			_nogConfig.push(roundBlockParser);
-			operatorParser.childParsers.push(roundBlockParser);
-			labelParser.childParsers.push(roundBlockParser);
-			blockChildParsers.push(roundBlockParser);
+			if(config.allowBrackets.indexOf(Bracket.Angle)!=-1){
+				var angleBlockParser = new BracketPairParser("<",">",null, exprBreaks);
+				nogConfig.push(angleBlockParser);
+				//operatorParser.childParsers.push(angleBlockParser);
+				//labelParser.childParsers.push(angleBlockParser);
+				childParsers.push(angleBlockParser);
+				angleBlockParser.childParsers = childParsers;
+				angleBlockParser.nextTokenParsers = childParsers;
+			}
 			
-			curlyBlockParser.childParsers = blockChildParsers;
-			squareBlockParser.childParsers = blockChildParsers;
-			angleBlockParser.childParsers = blockChildParsers;
-			roundBlockParser.childParsers = blockChildParsers;
+			if(config.allowBrackets.indexOf(Bracket.Round)!=-1){
+				var roundBlockParser = new BracketPairParser("(",")",null, exprBreaks);
+				nogConfig.push(roundBlockParser);
+				//operatorParser.childParsers.push(roundBlockParser);
+				//labelParser.childParsers.push(roundBlockParser);
+				childParsers.push(roundBlockParser);
+				roundBlockParser.childParsers = childParsers;
+				roundBlockParser.nextTokenParsers = childParsers;
+			}
 			
 			
-			lineEndingParser = new CharListParser([";"]);
-			_nogConfig.push(lineEndingParser);
+			childParsers = childParsers.concat([spaceParser]);
+			operatorParser.finishedParsers = childParsers;
+			labelParser.finishedParsers = childParsers;
+			numberParser.finishedParsers = childParsers;
+			stringSingleParser.finishedParsers = childParsers;
+			stringDoubleParser.finishedParsers = childParsers;
+			stringBacktickParser.finishedParsers = childParsers;
+			
+			
+			var lineEndingParser = new CharListParser(exprBreaks);
+			nogConfig.push(lineEndingParser);
+			_nogConfigs.set(configKey, nogConfig);
 		}
+		return nogConfig;
 	}
 
-
-	private static var _nogConfig:Array<ICharacterParser>;
+	private static var _nogConfigs:Map<String, Array<ICharacterParser>>;
+*/
 	
 	private var _pendingMap:Map<String, NogPending>;
 	private var _pending:Array<NogPending>;
 	private var _nogResult:Array<NogPos>;
+	private var _nogConfig:Array<ICharacterParser>;
+	
+	var _hexParser:NumberParser;
+	var _numberParser:NumberParser;
+	var _operatorParser:CharListParser;
+	var _labelParser:CharListParser;
+	var _stringSingleParser:QuotedStringParser;
+	var _stringDoubleParser:QuotedStringParser;
+	var _stringBacktickParser:QuotedStringParser;
+	var _curlyBlockParser:BracketPairParser;
+	var _squareBlockParser:BracketPairParser;
+	var _angleBlockParser:BracketPairParser;
+	var _roundBlockParser:BracketPairParser;
+	var _lineEndingParser:CharListParser;
+	var _commentMultiParser:QuotedStringParser;
+	var _commentSingleParser:QuotedStringParser;
 	
 	// Sets back-references in output objects (change the prop as you parse different sources)
 	public var currentFilePath:String;
 
 
-	public function new(inputString:String=null){
+	public function new(inputString:String=null, config:NogInterpConfig=null){
+		createConfig(config);
 		super(inputString);
 		_pendingMap = new Map<String, NogPending>();
 	}
 	
+	function createConfig(config:NogInterpConfig) 
+	{
+		if (config == null) config = CONFIG_A;
+		
+		var nogConfig:Array<ICharacterParser> = [];
+		nogConfig.push(WhitespaceParser.instance);
+		
+		var spaceParser = new WhitespaceParser(config.whitespace);
+		
+		var childParsers:Array<ICharacterParser> = [spaceParser];
+		
+		var exprBreaks = config.blockBreaks;
+		
+		_hexParser = new NumberParser(true);
+		nogConfig.push(_hexParser);
+		childParsers.push(_hexParser);
+		
+		_numberParser = new NumberParser(false);
+		nogConfig.push(_numberParser);
+		childParsers.push(_numberParser);
+		
+		_commentMultiParser = new QuotedStringParser(config.multiCommentStart, config.multiCommentEnd);
+		nogConfig.push(_commentMultiParser);
+		childParsers.push(_commentMultiParser);
+		
+		_commentSingleParser = new QuotedStringParser(config.singleCommentStart, config.singleCommentEnd);
+		nogConfig.push(_commentSingleParser);
+		childParsers.push(_commentSingleParser);
+		
+		_operatorParser = new CharListParser(config.operators, 2, exprBreaks);
+		nogConfig.push(_operatorParser);
+		childParsers.push(_operatorParser);
+		
+		_labelParser = new CharListParser(CharListParser.getCharRanges(true,true,true,["_"]), 2, exprBreaks);
+		nogConfig.push(_labelParser);
+		childParsers.push(_labelParser);
+		
+		_stringSingleParser = new QuotedStringParser(["'"]);
+		childParsers.push(_stringSingleParser);
+		
+		_stringDoubleParser = new QuotedStringParser(['"']);
+		childParsers.push(_stringDoubleParser);
+		
+		_stringBacktickParser = new QuotedStringParser(['`']);
+		childParsers.push(_stringBacktickParser);
+		
+		if(config.allowBrackets.indexOf(Bracket.Curly)!=-1){
+			_curlyBlockParser = new BracketPairParser("{","}",null, exprBreaks);
+			nogConfig.push(_curlyBlockParser);
+			childParsers.push(_curlyBlockParser);
+			_curlyBlockParser.childParsers = childParsers;
+			_curlyBlockParser.nextTokenParsers = childParsers;
+		}
+		
+		if(config.allowBrackets.indexOf(Bracket.Square)!=-1){
+			_squareBlockParser = new BracketPairParser("[","]",null, exprBreaks);
+			nogConfig.push(_squareBlockParser);
+			childParsers.push(_squareBlockParser);
+			_squareBlockParser.childParsers = childParsers;
+			_squareBlockParser.nextTokenParsers = childParsers;
+		}
+		
+		if(config.allowBrackets.indexOf(Bracket.Angle)!=-1){
+			_angleBlockParser = new BracketPairParser("<",">",null, exprBreaks);
+			nogConfig.push(_angleBlockParser);
+			childParsers.push(_angleBlockParser);
+			_angleBlockParser.childParsers = childParsers;
+			_angleBlockParser.nextTokenParsers = childParsers;
+		}
+		
+		if(config.allowBrackets.indexOf(Bracket.Round)!=-1){
+			_roundBlockParser = new BracketPairParser("(",")",null, exprBreaks);
+			nogConfig.push(_roundBlockParser);
+			childParsers.push(_roundBlockParser);
+			_roundBlockParser.childParsers = childParsers;
+			_roundBlockParser.nextTokenParsers = childParsers;
+		}
+		
+		
+		childParsers = childParsers.concat([spaceParser]);
+		_operatorParser.finishedParsers = childParsers;
+		_labelParser.finishedParsers = childParsers;
+		_numberParser.finishedParsers = childParsers;
+		_stringSingleParser.finishedParsers = childParsers;
+		_stringDoubleParser.finishedParsers = childParsers;
+		_stringBacktickParser.finishedParsers = childParsers;
+		
+		
+		_lineEndingParser = new CharListParser(exprBreaks);
+		nogConfig.push(_lineEndingParser);
+		_nogConfig = nogConfig;
+	}
+	
 	override private function getParserConfig():Array<ICharacterParser>{
-		return nogConfig;
+		return _nogConfig;
 	}
 	
 	override private function start():Void {
@@ -220,12 +354,12 @@ class NogInterpreter extends AbstractInterpreter
 		_result = _nogResult;
 	}
 
-	override private function interpret(id:String, parentId:String, parser:ICharacterParser, strings:Dynamic):Void {
-		if (parser == lineEndingParser) return;
+	override private function interpret(id:String, parentId:String, key:String, parser:ICharacterParser, strings:Dynamic):Void {
+		if (parser == _lineEndingParser) return;
 		
 		var value:Dynamic = null;
 		
-		var pending:NogPending = NogPending.take(id, parser, strings);
+		var pending:NogPending = NogPending.take(id, key, parser, strings);
 		_pendingMap.set(id, pending);
 		
 		pending.start = _stringParser.getStartIndex(id);
@@ -265,52 +399,60 @@ class NogInterpreter extends AbstractInterpreter
 	function convertPending(pending:NogPending) {
 		var nogObj:Nog = null;
 		
-		if (pending.parser == operatorParser) {
+		if (pending.parser == _operatorParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
-			nogObj = Nog.Op(str, getChild(pending), getChild(pending, 1));
+			nogObj = Nog.Op(str, getChild(pending));
 			
-		}else if (pending.parser == numberParser) {
+		}else if (pending.parser == _numberParser) {
 			var str:String = cast pending.strings;
 			if(str.indexOf(".")==-1){
-				nogObj = Nog.Int(Std.parseInt(str), false);
+				nogObj = Nog.Int(Std.parseInt(str), false, getChild(pending));
 			}else {
-				nogObj = Nog.Float(Std.parseFloat(str));
+				nogObj = Nog.Float(Std.parseFloat(str), getChild(pending));
 			}
 			
-		}else if (pending.parser == hexParser) {
+		}else if (pending.parser == _hexParser) {
 			var str:String = cast pending.strings;
-			nogObj = Nog.Int(Std.parseInt(str), true);
+			nogObj = Nog.Int(Std.parseInt(str), true, getChild(pending));
 			
-		}else if (pending.parser == labelParser) {
+		}else if (pending.parser == _labelParser) {
 			var str = (pending.strings!=null ? StringTools.trim(pending.strings) : null);
-			nogObj = Nog.Label(str, getChild(pending), getChild(pending, 1));
+			nogObj = Nog.Label(str, getChild(pending));
 			
-		}else if (pending.parser == stringSingleParser) {
-			nogObj = Nog.Str(Quote.Single, pending.strings);
+		}else if (pending.parser == _stringSingleParser) {
+			nogObj = Nog.Str(Quote.Single, pending.strings, getChild(pending));
 			
-		}else if (pending.parser == stringDoubleParser) {
-			nogObj = Nog.Str(Quote.Double, pending.strings);
+		}else if (pending.parser == _stringDoubleParser) {
+			nogObj = Nog.Str(Quote.Double, pending.strings, getChild(pending));
 			
-		}else if (pending.parser == stringBacktickParser) {
-			nogObj = Nog.Str(Quote.Backtick, pending.strings);
+		}else if (pending.parser == _stringBacktickParser) {
+			nogObj = Nog.Str(Quote.Backtick, pending.strings, getChild(pending));
 			
-		}else if (pending.parser == commentSingleParser) {
+		}else if (pending.parser == _commentSingleParser) {
 			nogObj = Nog.Comment(pending.strings);
 			
-		}else if (pending.parser == commentMultiParser) {
-			nogObj = Nog.CommentMulti(pending.strings);
+		}else if (pending.parser == _commentMultiParser) {
+			nogObj = Nog.CommentMulti(pending.strings, getChild(pending));
 			
-		}else if (pending.parser == curlyBlockParser) {
-			nogObj = Nog.Block(Bracket.Curly, pending.childrenNog!=null ? pending.childrenNog : [] );
+		}else if (pending.parser == _curlyBlockParser) {
+			var separator = getString(pending);
+			if (separator == "\r\n") separator = BlockBreak.Newline;
+			nogObj = Nog.Block(Bracket.Curly, getChildren(pending, StringKeys.CHILD), getChild(pending), separator);
 			
-		}else if (pending.parser == squareBlockParser) {
-			nogObj = Nog.Block(Bracket.Square,  pending.childrenNog!=null ? pending.childrenNog : []);
+		}else if (pending.parser == _squareBlockParser) {
+			var separator = getString(pending);
+			if (separator == "\r\n") separator = BlockBreak.Newline;
+			nogObj = Nog.Block(Bracket.Square, getChildren(pending, StringKeys.CHILD), getChild(pending), separator);
 			
-		}else if (pending.parser == roundBlockParser) {
-			nogObj = Nog.Block(Bracket.Round,  pending.childrenNog!=null ? pending.childrenNog : []);
+		}else if (pending.parser == _roundBlockParser) {
+			var separator = getString(pending);
+			if (separator == "\r\n") separator = BlockBreak.Newline;
+			nogObj = Nog.Block(Bracket.Round, getChildren(pending, StringKeys.CHILD), getChild(pending), separator);
 			
-		}else if (pending.parser == angleBlockParser) {
-			nogObj = Nog.Block(Bracket.Angle,  pending.childrenNog!=null ? pending.childrenNog : []);
+		}else if (pending.parser == _angleBlockParser) {
+			var separator = getString(pending);
+			if (separator == "\r\n") separator = BlockBreak.Newline;
+			nogObj = Nog.Block(Bracket.Angle, getChildren(pending, StringKeys.CHILD), getChild(pending), separator);
 			
 		}else {
 			throw "Something went very wrong";
@@ -322,8 +464,9 @@ class NogInterpreter extends AbstractInterpreter
 		if (pending.parent==null) {
 			_nogResult.unshift(nogPos);
 		}else {
-			if (pending.parent.childrenNog == null) pending.parent.childrenNog = [];
-			pending.parent.childrenNog.push(nogPos);
+			//if (pending.parent.childrenNog == null) pending.parent.childrenNog = [];
+			//pending.parent.childrenNog.push(nogPos);
+			pending.parent.addChild(pending.key, nogPos);
 		}
 		_pendingMap.remove(pending.id);
 		NogPending.ret(pending);
@@ -340,15 +483,33 @@ class NogInterpreter extends AbstractInterpreter
 		}
 		return true;
 	}
-	inline function getChild(pending:NogPending, index:Int=0):NogPos{
-		return pending.childrenNog == null || pending.childrenNog.length<=index ? null : pending.childrenNog[index];
+	function getString(pending:NogPending):String {
+		if (!pending.strings) {
+			return null;
+		}else if (Std.is(pending.strings, Array)) {
+			return (pending.strings==0 ? null : pending.strings[0]);
+		}else {
+			return cast pending.strings;
+		}
+	}
+	function getChild(pending:NogPending, ?key:String, index:Int = 0):NogPos {
+		if (key == null) key = StringKeys.NEXT;
+		if (pending.childMap == null) return null;
+		var list = pending.childMap.get(key);
+		return list == null || list.length<=index ? null : list[index];
+		//return pending.childrenNog == null || pending.childrenNog.length<=index ? null : pending.childrenNog[index];
+	}
+	function getChildren(pending:NogPending, key:String):Array<NogPos> {
+		if (pending.childMap == null) return [];
+		var list = pending.childMap.get(key);
+		return list == null ? [] : list;
 	}
 }
 class NogPending {
 	
 	private static var _pool:Array<NogPending> = [];
 	
-	public static function take(id:String, parser:ICharacterParser, strings:Dynamic) {
+	public static function take(id:String, key:String, parser:ICharacterParser, strings:Dynamic) {
 		var ret:NogPending;
 		if (_pool.length > 0) {
 			ret = _pool.pop();
@@ -356,6 +517,7 @@ class NogPending {
 			ret = new NogPending();
 		}
 		ret.id = id;
+		ret.key = key;
 		ret.parser = parser;
 		ret.strings = strings;
 		return ret;
@@ -365,16 +527,18 @@ class NogPending {
 		nogPending.parser = null;
 		nogPending.strings = null;
 		nogPending.childrenPending = null;
-		nogPending.childrenNog = null;
+		nogPending.childMap = null;
 		nogPending.parent = null;
 		_pool.push(nogPending);
 	}
 	
 	public var id:String;
+	public var key:String;
 	public var parser:ICharacterParser;
 	public var strings:Dynamic;
 	public var childrenPending:Array<NogPending>;
-	public var childrenNog:Array<NogPos>;
+	//public var childrenNog:Array<NogPos>;
+	public var childMap:Map<String, Array<NogPos>>;
 	public var parent:NogPending;
 	
 	public var start:Int;
@@ -385,4 +549,29 @@ class NogPending {
 		
 	}
 	
+	public function addChild(key:String, child:NogPos) {
+		if (childMap == null) childMap = new Map();
+		var list:Array<NogPos> = childMap.get(key);
+		if (list==null) {
+			list = [];
+			childMap.set(key, list);
+		}
+		list.push(child);
+	}
+	
+}
+
+typedef NogInterpConfig = {
+	var whitespace:Array<String>;
+	
+	var blockBreaks:Array<String>;
+	var operators:Array<String>;
+	
+	var singleCommentStart:Array<String>;
+	var singleCommentEnd:Array<String>;
+	
+	var multiCommentStart:Array<String>;
+	var multiCommentEnd:Array<String>;
+	
+	var allowBrackets:Array<String>;
 }

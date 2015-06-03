@@ -1,5 +1,6 @@
 package nog.lang;
 import haxe.macro.Context;
+import nog.lang.LangDef.LangMeta;
 import nog.lang.LangDef.Pointer;
 import nog.lang.LangDef.Ref;
 import nog.lang.LangDef.TokenDef;
@@ -72,8 +73,10 @@ class LangDefInterpreter implements IInterpreter
 		}
 		
 		var fileExt:String = null;
-		var reader:String = null;
 		var name:String = null;
+		var readerType:String = null;
+		var meta:Array<LangMeta> = [];
+		
 		var rootDefs:Array<TokenPos> = [];
 		var refs:Map<String, TokenPos> = new Map();
 		var refList:Array<Ref> = [];
@@ -81,39 +84,57 @@ class LangDefInterpreter implements IInterpreter
 		var identifierTypes:Array<String> = [];
 		for (nogPos in res) {
 			switch(nogPos.nog()) {
-				case Nog.Op(op, child1, child2):
-					if (child2 != null) {
-						child2.error( "Unrecognised token: "+child2.toString());
-					}
+				case Nog.Op(op, next):
 					if (op == "@") {
 						// metadata
-						var pair = getNameValue(child1);
-						switch( pair.name ) {
-							case "name" : name = pair.value;
-							case "fileExt" : fileExt = pair.value;
-							case "reader" : reader = pair.value;
+						var metaObj = getMetaOperation(next);
+						if (metaObj != null) {
+							switch(metaObj) {
+								case SetProp(nogPos, target, fields, value):
+									if (target != "reader" || fields.length == 0) {
+										
+										if (fields.length > 0) {
+											nogPos.error("Cannot set child property on this metadata");
+											
+										}else if (Type.getClassName(Type.getClass(value)) != "String") { // For some reason Std.is isn't working here
+											nogPos.error("This metadata must be set to a String: ");
+											
+										}else if(target == "fileExt"){
+											fileExt = value;
+										}else if(target == "name"){
+											name = value;
+										}else if(target == "reader"){
+											readerType = value;
+										}
+									}else{
+										meta.push(metaObj);
+									}
+									
+								case CallMethod(nogPos, target, fields, args):
+									if (target != "reader") {
+										nogPos.error("Cannot call method on this metadata");
+									}else{
+										meta.push(metaObj);
+									}
+							}
 						}
 						
 					}else if (op == "!") {
 						// definition
-						switch(child1.nog()) {
-							case Nog.Label(label, child1, child2):
+						switch(next.nog()) {
+							case Nog.Label(label, next2):
 								// Define new symbol
-								var token = interpNogRoot(child1, lookups, identifierTypes);
+								var token = interpNogRoot(next2, lookups, identifierTypes);
 								refs.set(label, token);
 								refList.push({name:label, value:token});
-								
-								if (child2 != null) {
-									child2.error( "Unrecognised token: "+child2.toString());
-								}
 							default:
-								child1.error("Should specify a symbol label here");
+								next.error("Should specify a symbol label here");
 								
 						}
 						
 					}else if (op == "-") {
 						// root item/s
-						rootDefs.push(interpNogRoot(child1, lookups, identifierTypes));
+						rootDefs.push(interpNogRoot(next, lookups, identifierTypes));
 					}
 				
 				case Nog.Comment(_) | Nog.CommentMulti(_):
@@ -141,16 +162,15 @@ class LangDefInterpreter implements IInterpreter
 				}
 			}
 		}
-		var readerType = null;
-		if (reader==null) {
+		if (readerType==null) {
 			error("Reader must be specified in language definition with @reader tag");
 		}
 		#if macro
 		// force reader class to be included in output
-		Context.getModule(reader);
+		Context.getModule(readerType);
 		#end
 		
-		_result = { fileExt:fileExt, name:name, rootDefs:rootDefs, identifierTypes:identifierTypes, symbols:refList, readerType:reader, file:currentFilePath };
+		_result = { fileExt:fileExt, name:name, rootDefs:rootDefs, identifierTypes:identifierTypes, symbols:refList, readerType:readerType, file:currentFilePath, metadata:meta };
 	}
 	
 	inline private function error(str:String) {
@@ -165,138 +185,188 @@ class LangDefInterpreter implements IInterpreter
 		return interpNog(nogPos, lookups, identifierTypes);
 	}
 	
-	function interpNog(nogPos:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>, allowBlockEncap:Bool=false, childOverflow:Null<Pointer<NogPos>>=null) : Null<TokenPos> {
+	function interpNog(nogPos:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>, allowBlockEncap:Bool=false) : Null<TokenPos> {
 		if (nogPos == null) return null;
 		
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Op(op, child1, child2):
+			case Nog.Op(op, next):
 				
 				if ( op.charAt(0) == "\\" ) {
 					if(op.length>1){
-						if (child2 != null) errorOrOverflow(child2, childOverflow, "Unrecognised token: "+child2.toString());
-						return TokenDef.LiteralOp(op.substr(1), interpNog(child1, lookups, identifierTypes)).nogPos(nogPos);
+						return TokenDef.LiteralOp(op.substr(1), interpNog(next, lookups, identifierTypes)).nogPos(nogPos);
 					}else {
-						return makeLiteral(nogPos, child1, child2, lookups, identifierTypes, childOverflow).nogPos(nogPos);
+						return makeLiteral(nogPos, next, lookups, identifierTypes).nogPos(nogPos);
 					}
 				}
 				
-				if(op == "+"){
-					//if (child2 != null) child2.error( "Unrecognised token: "+child2.toString());
-					return TokenDef.Multi(interpNog(child1, lookups, identifierTypes, true), 1, -1, interpNog(child2, lookups, identifierTypes)).nogPos(nogPos);
-					
-				}else if (op == "|") {
-					return TokenDef.Alternate(interpNogList(child1, lookups, identifierTypes, "["), interpNog(child2, lookups, identifierTypes)).nogPos(nogPos);
+				if (op == "|") {
+					var listRes = interpNogList(next, lookups, identifierTypes, "[");
+					if (listRes == null) {
+						next.error( "Alternatve operator should be followed by tokens");
+						return null;
+					}else{
+						return TokenDef.Alternate(listRes.list, listRes.next).nogPos(nogPos);
+					}
 					
 				}else if (op == ":") {
-					switch(child1.nog()) {
-						case Nog.Label(label, child11, child12):
+					if (next==null) {
+						next.error( "Identifier type operator should be followed by a label");
+						return null;
+					}
+					switch(next.nog()) {
+						case Nog.Label(label, next2):
 							if (identifierTypes.indexOf(label) == -1) identifierTypes.push(label);
-							
-							var c1;
-							var c2 = null;
-							var excess = null;
-							if (child11 == null) {
-								if (child12 == null) {
-									c1 = child2;
-								}else {
-									c1 = child12;
-									c2 = child2;
-								}
-							}else {
-								c1 = child11;
-								if (child12 == null) {
-									c2 = child2;
-								}else {
-									c2 = child12;
-									excess = child2;
-								}
-							}
-							if ( excess!=null ) {
-								errorOrOverflow(excess, childOverflow, "Unrecognised token: "+excess.toString());
-							}
-							var lookup = (c2 == null ? {value:null} : childOverflow);
-							var c1Token = interpNog(child11, lookups, identifierTypes, false, lookup);
-							if (c2 == null) c2 = lookup.value;
-							var token = TokenDef.Ident(label, c1Token, interpNog(c2, lookups, identifierTypes, false, childOverflow));
+							var c1Token = interpNog(next2, lookups, identifierTypes, false);
+							var token = TokenDef.Ident(label, null, c1Token);
 							return token.nogPos(nogPos);
+							
+						case Nog.Block(Bracket.Square, children, next2, blockBreak):
+							if (children.length > 1) {
+								next.error( "Identifier array should not contain any line breaks or semi-colons");
+								return null;
+							}else if (children.length == 0) {
+								next.error( "Identifier array should contain a label and separator");
+								return null;
+							}
+							var labelNog = children[0];
+							switch(labelNog.nog()) {
+								case Nog.Label(label, next3):
+									if (next3 == null) {
+										labelNog.error( "Identifier array label should be followed by separator");
+										return null;
+									}
+									switch(next3.nog()) {
+										case Nog.Op(op, next4):
+											if (next4 != null) {
+												next4.error( "Identifier array separator should not be followed");
+												return null;
+											}
+											if (identifierTypes.indexOf(label) == -1) identifierTypes.push(label);
+											var c1Token = interpNog(next2, lookups, identifierTypes, false);
+											var token = TokenDef.Ident(label, op, c1Token);
+											return token.nogPos(nogPos);
+										default:
+											labelNog.error( "Identifier array label should be followed by separator");
+											return null;
+									}
+									
+								default:
+									next.error( "Should be label token here");
+									return null;
+							}
+							
+							
 						default:
-							child1.error( "Identifier type operator should be followed by a label");
+							next.error( "Identifier type operator should be followed by a label");
 							return null;
 					}
 					
 				}else if (op == "^") {
-					if (child2 != null)errorOrOverflow(child2, childOverflow, "Unrecognised token: "+child2.toString());
-					switch(child1.nog()) {
-						case Nog.Label(label, child11, child12):
-							if (child12 != null)errorOrOverflow(child12, childOverflow, "Unrecognised token: "+child12.toString());
+					if (next==null) {
+						next.error( "Name type operator should be followed by a label");
+						return null;
+					}
+					switch(next.nog()) {
+						case Nog.Label(label, next2):
 							if (identifierTypes.indexOf(label) == -1) identifierTypes.push(label);
-							var c1Token = interpNog(child11, lookups, identifierTypes, false, childOverflow);
-							var token = TokenDef.Named(label, interpNog(child11, lookups, identifierTypes, false, childOverflow));
+							var token = TokenDef.Named(label, interpNog(next2, lookups, identifierTypes, false));
 							return token.nogPos(nogPos);
 						default:
-							child1.error( "Name type operator should be followed by a label");
+							next.error( "Name type operator should be followed by a label");
 							return null;
 					}
 					
 				}else if (op == "!") {
-					if (child2 != null) errorOrOverflow(child2, childOverflow, "Unrecognised token: "+child2.toString());
-					switch(child1.nog()) {
-						case Nog.Label(label, child11, child12):
-							if (child12 != null) errorOrOverflow(child12, childOverflow, "Unrecognised token: "+child12.toString());
-							var ret = TokenDef.Ref(label, {value:null}, interpNog(child11, lookups, identifierTypes)).nogPos(nogPos);
+					if (next==null) {
+						next.error( "Should be simple label here");
+						return null;
+					}
+					switch(next.nog()) {
+						case Nog.Label(label, next2):
+							var ret = TokenDef.Ref(label, {value:null}, interpNog(next2, lookups, identifierTypes)).nogPos(nogPos);
 							lookups.push(ret);
 							return ret;
 						default:
-							nogPos.error( "Should be simple label here");
+							next.error( "Should be simple label here");
 							return null;
 					}
 					
 				}else if (op == "$") {
-					if (child2 != null) errorOrOverflow(child2, childOverflow, "Unrecognised token: "+child2.toString());
-					switch(child1.nog()) {
-						case Nog.Label(label, child11, child12):
-							if (child12 != null) errorOrOverflow(child12, childOverflow, "Unrecognised token: "+child12.toString());
+					if (next==null) {
+						next.error("Core type operator should be followed by a type name (e.g. Int)");
+						return null;
+					}
+					switch(next.nog()) {
+						case Nog.Label(label, next2):
 							switch(label) {
 								case "Int":
-									return TokenDef.Int.nogPos(nogPos);
+									return TokenDef.Int(interpNog(next2, lookups, identifierTypes)).nogPos(nogPos);
 								case "Float":
-									return TokenDef.Float.nogPos(nogPos);
+									return TokenDef.Float(interpNog(next2, lookups, identifierTypes)).nogPos(nogPos);
 								case "String":
-									return interpStringType(child11);
+									return interpStringType(next2, lookups, identifierTypes);
 								default:
-									child11.error("Unknown core type used");
+									next.error("Unknown core type used");
 									return null;
 							}
 						default:
-							child1.error("Core type operator should be followed by a type name (e.g. Int)");
+							next.error("Core type operator should be followed by a type name (e.g. Int)");
 							return null;
 					}
 					
 				}else if (op == "?") {
-					var children;
-					if (isNogList(child1, "[")) {
-						children = interpNogList(child1, lookups, identifierTypes, "[");
+					var children = null;
+					var next2 = null;
+					if (isNogList(next, "[")) {
+						var listRes = interpNogList(next, lookups, identifierTypes, "[");
+						if (listRes != null) {
+							children = listRes.list;
+							next2 = listRes.next;
+						}
 					}else {
-						children = [interpNog(child1, lookups, identifierTypes)];
+						children = [interpNog(next, lookups, identifierTypes)];
 					}
-					if(children.length==1){
-						var next = interpNog(child2, lookups, identifierTypes);
-						return TokenDef.Optional(children[0], next).nogPos(nogPos);
-					}else if (children.length == 0) {
-						child1.error("Optional should have exactly one child expression");
+					if(children!=null && children.length==1){
+						//var next = interpNog(child2, lookups, identifierTypes);
+						return TokenDef.Optional(children[0], next2).nogPos(nogPos);
+					}else if (children==null || children.length == 0) {
+						next.error("Optional operator should have exactly one child expression");
 						return null;
 					}else {
-						child1.error("Optional operator should only have one child expression");
+						next.error("Optional operator should only have one child expression");
+						return null;
+					}
+					
+				}else if(op == "+"){
+					var children = null;
+					var next2 = null;
+					if (isNogList(next, "[")) {
+						var listRes = interpNogList(next, lookups, identifierTypes, "[");
+						if (listRes != null) {
+							children = listRes.list;
+							next2 = listRes.next;
+						}
+					}else {
+						children = [interpNog(next, lookups, identifierTypes)];
+					}
+					if(children!=null && children.length==1){
+						//var next = interpNog(child2, lookups, identifierTypes);
+						return TokenDef.Multi(children[0], 1, -1, next2).nogPos(nogPos);
+					}else if (children==null || children.length == 0) {
+						next.error("Multi operator should have exactly one child expression");
+						return null;
+					}else {
+						next.error("Multi operator should only have one child expression");
 						return null;
 					}
 					
 				}else {
-					child1.error( "Unrecognised operator");
+					next.error( "Unrecognised operator");
 					return null;
 				}
 				
-			case Nog.Block(bracket, children):
+			case Nog.Block(bracket, children, next2, blockBreak):
 				if (allowBlockEncap) {
 					if (children.length == 1) {
 						return interpNog(children[0], lookups, identifierTypes);
@@ -308,100 +378,49 @@ class LangDefInterpreter implements IInterpreter
 				}
 				return null;
 				
-			case Nog.Str(quote, str):
-				return TokenDef.LiteralStr(quote, str).nogPos(nogPos);
+			case Nog.Str(quote, str, next2):
+				return TokenDef.LiteralStr(quote, str, interpNog(next2, lookups, identifierTypes)).nogPos(nogPos);
 				
-			case Label(label, child1, child2):
+			case Label(label, next2):
 				nogPos.error("Unrecognised label");
 				return null;
 				
-			case Nog.Comment(_) | Nog.CommentMulti(_):
+			case Nog.Comment(_):
 				return null;
 				
-			case Nog.Int(_, _) | Nog.Float(_):
+			case Nog.CommentMulti(_, next2):
+				return next2==null ? null : interpNog(next2, lookups, identifierTypes);
+				
+			case Nog.Int(_, _, next2) | Nog.Float(_, next2):
 				nogPos.error("Numbers have no meaning here");
 				return null;
 		}
 	}
 	
-	function makeLiteral(parent:NogPos, nogPos1:NogPos, nogPos2:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>, childOverflow:Null<Pointer<NogPos>>) : Null<TokenDef> 
+	function makeLiteral(parent:NogPos, nogPos1:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>) : Null<TokenDef> 
 	{
 		if (nogPos1 == null) {
 			parent.error( "Literal operator should be following by at least one token");
 			return null;
 		}
 		switch( nogPos1.nog() ) {
-			case Nog.Str(quote, string):
-				return TokenDef.LiteralStr(quote, string);
+			case Nog.Str(quote, string, next):
+				return TokenDef.LiteralStr(quote, string, interpNog(next, lookups, identifierTypes));
 				
-			case Nog.Op(op, child1, child2):
-				var c1;
-				var c2 = null;
-				var excess = null;
-				if (child1 == null) {
-					if (child2 == null) {
-						c1 = nogPos2;
-					}else {
-						c1 = child2;
-						c2 = nogPos2;
-					}
-				}else {
-					c1 = child1;
-					if (child2 == null) {
-						c2 = nogPos2;
-					}else {
-						c2 = child2;
-						excess = nogPos2;
-					}
-				}
-				if ( excess!=null ) {
-					errorOrOverflow(excess, childOverflow, "Unrecognised token: "+excess.toString());
-				}
-				return TokenDef.LiteralOp(op, interpNog(c1, lookups, identifierTypes), interpNog(c2, lookups, identifierTypes));
+			case Nog.Op(op, next):
+				return TokenDef.LiteralOp(op, interpNog(next, lookups, identifierTypes));
 				
-			case Nog.Label(label, child1, child2):
-				if ( child1!=null && child2!=null && nogPos2!=null ) {
-					parent.error( "Too many tokens in under literal operator");
-					return null;
-				}
-				var c1;
-				var c2 = null;
-				var excess = null;
-				if (child1 == null) {
-					if (child2 == null) {
-						c1 = nogPos2;
-					}else {
-						c1 = child2;
-						c2 = nogPos2;
-					}
-				}else {
-					c1 = child1;
-					if (child2 == null) {
-						c2 = nogPos2;
-					}else {
-						c2 = child2;
-						excess = nogPos2;
-					}
-				}
-				if ( excess!=null ) {
-					errorOrOverflow(excess, childOverflow, "Unrecognised token: "+excess.toString());
-				}
-				var lookup = (c2 == null ? {value:null} : null);
-				var c1Token = interpNog(c1, lookups, identifierTypes, false, lookup);
-				if (c2 == null) c2 = lookup.value;
+			case Nog.Label(label, next):
+				var c1Token = interpNog(next, lookups, identifierTypes, false);
+				return TokenDef.LiteralLabel(label, c1Token);
 				
-				return TokenDef.LiteralLabel(label, c1Token, interpNog(c2, lookups, identifierTypes));
-				
-			case Nog.Block(bracket, children):
-				if ( nogPos2!=null ) {
-					errorOrOverflow(nogPos2, childOverflow, "Unrecognised token: "+nogPos2.toString());
-				}
+			case Nog.Block(bracket, children, next, blockBreak):
 				var children2:Array<TokenPos> = [];
 				for (child in children) {
 					var childToken = interpNog(child, lookups, identifierTypes);
 					if(childToken!=null)children2.push(childToken);
 				}
-				return TokenDef.LiteralBlock(bracket, children2);
+				return TokenDef.LiteralBlock(bracket, children2, interpNog(next, lookups, identifierTypes));
 				
 			case Nog.Comment(_) | Nog.CommentMulti(_):
 				parent.error( "Literal Comments not supported");
@@ -424,11 +443,11 @@ class LangDefInterpreter implements IInterpreter
 		}
 	}
 	
-	function interpStringType(nogPos:NogPos) : TokenPos{
+	function interpStringType(nogPos:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>) : TokenPos{
 		var nog = nogPos.nog();
 		var bracket = "(";
 		switch(nog) {
-			case Nog.Block(bracket, children):
+			case Nog.Block(bracket, children, next2, blockBreak):
 				var allowSingle = false;
 				var allowDouble = false;
 				var allowBacktick = false;
@@ -439,7 +458,7 @@ class LangDefInterpreter implements IInterpreter
 					else if (i == 1) allowDouble = val;
 					else if (i == 2) allowBacktick = val;
 				}
-				return TokenDef.String(allowSingle, allowDouble, allowBacktick).nogPos(nogPos);
+				return TokenDef.String(allowSingle, allowDouble, allowBacktick, interpNog(next2, lookups, identifierTypes)).nogPos(nogPos);
 			default:
 				nogPos.error( "Should be a list of arguments surrounded in round brackets");
 				return null;
@@ -449,9 +468,8 @@ class LangDefInterpreter implements IInterpreter
 	function getLabel(nogPos:NogPos):String{
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Label(label, child1, child2):
-				if (child1 != null) child1.error("Child tokens are not accepted here");
-				if (child2 != null) child2.error("Child tokens are not accepted here");
+			case Nog.Label(label, next):
+				if (next != null) next.error("Child tokens are not accepted here");
 				return label;
 			default:
 				nogPos.error("Should be simple label here");
@@ -462,18 +480,18 @@ class LangDefInterpreter implements IInterpreter
 	function isNogList(nogPos:NogPos, bracket:String) : Bool {
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Block(bracket, children):
+			case Nog.Block(bracket, children, next, blockBreak):
 				return true;
 			default:
 		}
 		return false;
 	}
 	
-	function interpNogList(nogPos:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>, bracket:String) : Null<Array<TokenPos>> {
+	function interpNogList(nogPos:NogPos, lookups:Array<TokenPos>, identifierTypes:Array<String>, bracket:String) : Null<ListRes> {
 		var nog = nogPos.nog();
 		switch(nog) {
-			case Nog.Block(bracket, children):
-				return interpNogArray(children, lookups, identifierTypes);
+			case Nog.Block(bracket, children, next, blockBreak):
+				return {list:interpNogArray(children, lookups, identifierTypes), next:interpNog(next, lookups, identifierTypes)};
 			default:
 				nogPos.error( "Should be a list of tokens surrounded in brackets like "+bracket);
 				return null;
@@ -489,48 +507,75 @@ class LangDefInterpreter implements IInterpreter
 		return ret;
 	}
 	
-	function getNameValue(nogPos:NogPos) :Null<NameVal>
+	function getMetaOperation(nogPos:NogPos) : LangMeta
 	{
+		var topNog = nogPos;
 		var nog:Nog = nogPos.nog();
 		
-		switch(nog) {
-			case Nog.Label(label, child1, child2):
-				if( child2 != null) {
-					child2.error( "Unrecognised token: "+child2.toString());
-					return null;
-				}
-				if (label != "name" && label != "fileExt" && label != "reader") {
-					child1.error( "Unrecognised metadata name");
-					return null;
-				}
-				switch(child1.nog()) {
-					case Nog.Op("=", child11, child12):
-						switch(child11.nog()) {
-							case Nog.Str(quote, str):
-								return { name:label, value:str };
-							default:
-								child11.error("Should be a string value");
-								return null;
+		var fieldPath = NogUtils.followPropPath(nogPos);
+		var target = fieldPath.fields.shift();
+		
+		if (target != "name" && target != "fileExt" && target != "reader") {
+			fieldPath.next.error( "Unrecognised metadata name: "+target);
+			return null;
+		}
+		
+		switch(fieldPath.next.nog()) {
+			case Nog.Op("=", next2):
+				switch(next2.nog()) {
+					case Nog.Str(_, value, next3):
+						if (next3 != null) {
+							next3.error("Unrecognised token here");
 						}
+						return SetProp(topNog, target, fieldPath.fields, value);
+						
+					case Nog.Int(value, _, next3):
+						if (next3 != null) {
+							next3.error("Unrecognised token here");
+						}
+						return SetProp(topNog, target, fieldPath.fields, value);
+						
+					case Nog.Float(value, next3):
+						if (next3 != null) {
+							next3.error("Unrecognised token here");
+						}
+						return SetProp(topNog, target, fieldPath.fields, value);
+						
+					case Nog.Block(Bracket.Curly, children, next3, blockBreak):
+						if (next3 != null) {
+							next3.error("Unrecognised token here");
+						}
+						return SetProp(topNog, target, fieldPath.fields, NogJson.jsonNogToObject(next2));
+						
+					case Nog.Block(Bracket.Square, children, next3, blockBreak):
+						if (next3 != null) {
+							next3.error("Unrecognised token here");
+						}
+						return SetProp(topNog, target, fieldPath.fields, NogJson.jsonNogToObject(next2));
+						
 					default:
-						child1.error( "Should be an equals operator");
+						next2.error( "Should be a value following");
 						return null;
 				}
+			case Nog.Op(Bracket.Round, next2):
+				return CallMethod(topNog, target, fieldPath.fields, NogJson.listToArray(next2, true));
+				
 			default:
-				nogPos.error("Should be a label for metadata");
+				fieldPath.next.error( "Should be an equals operator: "+fieldPath.next);
 				return null;
 		}
 		
 	}
 	
 }
-typedef NameVal = {
-	var name:String;
-	var value:Dynamic;
-}
 typedef RefInfo = {
 	var parentEnum:Null<EnumValue>;
 	var parentArray:Null<Array<TokenDef>>;
 	var index:Int;
 	var ref:String;
+}
+
+typedef ListRes = {
+	var next:Null<TokenPos>;
+	var list:Array<TokenPos>;
 }

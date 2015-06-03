@@ -2,6 +2,7 @@ package nog.lang;
 import haxe.PosInfos;
 import nog.lang.LangDef.TokenDef;
 import nog.lang.LangDef.TokenPos;
+import nog.lang.read.ILangReader;
 import nog.Nog;
 
 class LangUtils
@@ -57,7 +58,7 @@ class LangUtils
 	static function resolveRef(tokenPos:TokenPos, map:Map<String, TokenPos>) 
 	{
 		switch(LangUtils.token(tokenPos)) {
-			case TokenDef.Ref(id, pointer, next):
+			case Ref(id, pointer, next):
 				if (pointer.value == null) {
 					if (!map.exists(id)) {
 						doErr(tokenPos, "Unrecognised reference token: "+id);
@@ -67,26 +68,24 @@ class LangUtils
 				}
 				if (next != null) resolveRef(next, map);
 				
-			case LiteralBlock(_, children):
-				for (child in children) {
-					resolveRef(child, map);
-				}
-				
-			case TokenDef.Alternate(children, next):
+			case LiteralBlock(_, children, next):
 				for (child in children) {
 					resolveRef(child, map);
 				}
 				if (next != null) resolveRef(next, map);
 				
-			case Named(_, next):
+			case Alternate(children, next):
+				for (child in children) {
+					resolveRef(child, map);
+				}
 				if (next != null) resolveRef(next, map);
 				
-			case TokenDef.Ident(_, child1, child2) | LiteralOp(_, child1, child2) | LiteralLabel(_, child1, child2) | Optional(child1, child2) | Multi(child1, _, _, child2):
+			case Ident(_, _, next) | LiteralOp(_, next) | LiteralLabel(_, next) | Named(_, next) | LiteralStr(_, _, next) | Int(next) | Float(next) | String(_, _, _, next):
+				if (next != null) resolveRef(next, map);
+				
+			case Optional(child1, child2) | Multi(child1, _, _, child2):
 				if (child1 != null) resolveRef(child1, map);
 				if (child2 != null) resolveRef(child2, map);
-				
-			case LiteralStr(_, _) | Int | Float | String(_, _, _):
-				// ignore
 		}
 	}
 	
@@ -100,7 +99,7 @@ class LangUtils
 					return toString(pointer.value);
 				}
 				
-			case LiteralBlock(bracket, children):
+			case LiteralBlock(bracket, children, next):
 				return NogUtils.getForeBracket(bracket) + NogUtils.getAftBracket(bracket);
 				
 			case Alternate(children, next):
@@ -115,28 +114,28 @@ class LangUtils
 				}
 				return tokens;
 				
-			case Ident(ident, next1, next2):
+			case Ident(ident, _, next):
 				return ident+" identifier";
 				
 			case Named(name, next):
 				return name+" token";
 				
-			case LiteralOp(op, next1, next2) :
+			case LiteralOp(op, next) :
 				return op;
 				
-			case LiteralLabel(label, next1, next2) :
+			case LiteralLabel(label, next) :
 				return label;
 				
-			case LiteralStr(quote, str):
+			case LiteralStr(quote, str, next):
 				return quote + str + quote;
 			
-			case Int:
+			case Int(next):
 				return "an Int";
 			
-			case Float:
+			case Float(next):
 				return "a Float";
 			
-			case TokenDef.String(acceptSingle, acceptDouble, acceptBacktick):
+			case TokenDef.String(acceptSingle, acceptDouble, acceptBacktick, next):
 				return "a String";
 				
 			case Optional(child1, child2):
